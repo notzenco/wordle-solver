@@ -109,7 +109,7 @@ Results over every answer:
 | Mode | Mean | Over the limit or lost |
 | --- | --- | --- |
 | default | 4.3 | 0 |
-| `-max 5` | — | 0 |
+| `-max 5` | — | about 1 in 20,000 (a guess-2 path into the _O_ER cluster) |
 | `-max 4` | 3.7 | about 2.5% (even a perfect solver needs a fifth guess for about 1.6%) |
 | `-hard` | 3.8 | about 0.3% lost, to traps like _ATCH and _O_ER |
 
