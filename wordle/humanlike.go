@@ -24,9 +24,15 @@ type Solver struct {
 	// Sloppiness is the chance, on a guess with turns to spare, of a human
 	// slip: reusing a ruled-out letter or repeating a yellow in the same spot.
 	Sloppiness float64
-	History    []Turn
-	words      []string // possible answers
-	rng        *rand.Rand
+	// Opener, when set, is the first guess, unless careful play needs a
+	// stronger one.
+	Opener string
+	// Hard keeps every guess legal in Hard Mode (see HardValid).
+	Hard     bool
+	History  []Turn
+	words    []string        // possible answers
+	excluded map[string]bool // ruled out unless nothing else fits
+	rng      *rand.Rand
 }
 
 var Openers = []string{
@@ -35,18 +41,16 @@ var Openers = []string{
 	"great", "least", "about", "spare", "react", "alert", "steam", "plane",
 }
 
-// Popular openers that split the answers well enough to finish within four
-// guesses almost every time; weaker favourites like ADIEU miss about 1 in 10.
-var strongOpeners = []string{
+// StrongOpeners are popular openers that split the answers well enough for
+// tight limits;
+// under -max 4 weaker favourites like ADIEU miss about 1 game in 10.
+var StrongOpeners = []string{
 	"stare", "slate", "roast", "heart", "trace", "steam", "spare", "react",
 	"later", "crane", "train",
 }
 
-// DefaultSloppiness is the Sloppiness new solvers start with.
-var DefaultSloppiness = 0.2
-
-// Roughly the results of a regular player, for finishing on turns 2 to 6.
-var finishWeights = []float64{0.04, 0.27, 0.40, 0.22, 0.07}
+// FinishWeights is roughly how often a regular player finishes on each turn.
+var FinishWeights = map[int]float64{2: 0.04, 3: 0.27, 4: 0.40, 5: 0.22, 6: 0.07}
 
 // Above this many candidates, rank guesses against a sample to stay fast.
 const sampleLimit = 400
@@ -62,29 +66,62 @@ func NewSolver(rng *rand.Rand, target, limit int) *Solver {
 	if target == 0 {
 		target = drawTarget(rng, limit)
 	}
-	return &Solver{Target: min(target, limit), Max: limit, Sloppiness: DefaultSloppiness, words: Answers, rng: rng}
+	return &Solver{Target: min(target, limit), Max: limit, Sloppiness: 0.2, words: Answers, rng: rng}
 }
 
 // drawTarget samples the human finishing spread, cut off at limit.
 func drawTarget(rng *rand.Rand, limit int) int {
-	weights := finishWeights[:max(min(limit-1, len(finishWeights)), 1)]
+	return DrawTurn(rng, limit, func(turn int) float64 { return FinishWeights[turn] })
+}
+
+// DrawTurn picks a finishing turn from 2 to limit with the given weights.
+func DrawTurn(rng *rand.Rand, limit int, weight func(turn int) float64) int {
 	total := 0.0
-	for _, w := range weights {
-		total += w
+	for turn := 2; turn <= limit; turn++ {
+		total += weight(turn)
 	}
 	x := rng.Float64() * total
-	for i, w := range weights {
-		if x < w {
-			return i + 2
+	for turn := 2; turn <= limit; turn++ {
+		if x < weight(turn) {
+			return turn
 		}
-		x -= w
+		x -= weight(turn)
 	}
-	return len(weights) + 1
+	return limit
 }
 
 func (s *Solver) Turn() int { return len(s.History) + 1 }
 
-func (s *Solver) Candidates() []string { return Filter(s.words, s.History) }
+// Candidates are the possible answers that fit every clue so far, leaving
+// out excluded words unless nothing else fits.
+func (s *Solver) Candidates() []string {
+	all := Filter(s.words, s.History)
+	if len(s.excluded) == 0 {
+		return all
+	}
+	var rest []string
+	for _, w := range all {
+		if !s.excluded[w] {
+			rest = append(rest, w)
+		}
+	}
+	if len(rest) == 0 {
+		return all
+	}
+	return rest
+}
+
+// Exclude rules words out as answers, as a player who knows NYT's past
+// answers does, while still allowing them as guesses. If the clues leave
+// nothing else, the excluded words come back, so a repeated answer is found.
+func (s *Solver) Exclude(words ...string) {
+	if s.excluded == nil {
+		s.excluded = map[string]bool{}
+	}
+	for _, w := range words {
+		s.excluded[w] = true
+	}
+}
 
 func (s *Solver) Record(guess, pattern string) {
 	s.History = append(s.History, Turn{guess, pattern})
@@ -92,9 +129,12 @@ func (s *Solver) Record(guess, pattern string) {
 
 func (s *Solver) NextGuess() (string, error) {
 	if len(s.History) == 0 {
+		if s.Opener != "" && (!s.careful() || slices.Contains(StrongOpeners, s.Opener)) {
+			return s.Opener, nil
+		}
 		openers := Openers
-		if s.Max <= 4 {
-			openers = strongOpeners
+		if s.careful() {
+			openers = StrongOpeners
 		}
 		return openers[s.rng.IntN(len(openers))], nil
 	}
@@ -118,7 +158,7 @@ func (s *Solver) pick(cands []string, ahead bool) string {
 	turnsLeft := s.Max + 1 - s.Turn()
 	switch turnsLeft {
 	case 1:
-		return cands[s.rng.IntN(len(cands))]
+		return s.choose(cands)
 	case 2:
 		g, _ := s.bestForTwo(cands)
 		return g
@@ -126,7 +166,7 @@ func (s *Solver) pick(cands []string, ahead bool) string {
 	// With four or more of six guesses left a slip costs little and can't
 	// lose. A tighter limit has no room for one (a slip on guess 2 under a
 	// limit of 5 can miss it), so the solver then plays carefully.
-	if s.Max == 6 && turnsLeft >= 4 && s.rng.Float64() < s.Sloppiness {
+	if !s.careful() && turnsLeft >= 4 && s.rng.Float64() < s.Sloppiness {
 		if w, ok := s.slip(cands); ok {
 			return w
 		}
@@ -135,23 +175,21 @@ func (s *Solver) pick(cands []string, ahead bool) string {
 	if turnsLeft == 3 && len(cands) > 3 {
 		return s.bestForThree(cands, ranked)
 	}
+	if s.careful() {
+		return s.sharpest(cands, ranked)
+	}
 
 	if ahead && turnsLeft >= 3 && len(cands) <= 12 {
 		// Ahead of pace with few words left: spend a turn on an elimination
 		// word, as people do, which also can't win too early.
 		if pool := s.eliminators(cands, 5); len(pool) > 0 {
-			return pool[s.rng.IntN(len(pool))]
+			return s.choose(pool)
 		}
 	}
 	if len(cands) > 2 && len(cands) >= turnsLeft {
 		// A trap like _OUND: guessing one fitting word per turn could lose,
 		// so take an elimination word unless a fitting word splits as well.
-		best := ranked[0]
-		if pool := s.eliminators(cands, 1); len(pool) > 0 &&
-			s.expectedLeft(pool[0], cands) < s.expectedLeft(best, cands) {
-			return pool[0]
-		}
-		return best
+		return s.sharpest(cands, ranked)
 	}
 
 	var pool []string
@@ -166,7 +204,45 @@ func (s *Solver) pick(cands []string, ahead bool) string {
 		// picking whichever fitting word comes to mind.
 		pool = ranked[:max(2, len(ranked)/2)]
 	}
-	return pool[s.rng.IntN(len(pool))]
+	return s.choose(pool)
+}
+
+// choose picks from words at random, favouring familiar ones the way a
+// person thinks of HOUSE long before NADIR.
+func (s *Solver) choose(words []string) string {
+	total := 0.0
+	weights := make([]float64, len(words))
+	for i, w := range words {
+		weights[i] = familiarity(w)
+		total += weights[i]
+	}
+	x := s.rng.Float64() * total
+	for i, wt := range weights {
+		if x < wt {
+			return words[i]
+		}
+		x -= wt
+	}
+	return words[len(words)-1]
+}
+
+// allowed reports whether w may be guessed now; only Hard Mode forbids any.
+func (s *Solver) allowed(w string) bool { return !s.Hard || HardValid(w, s.History) }
+
+// careful reports whether there is no room for human detours: under a
+// guess limit below six, or in Hard Mode, where traps like _ATCH can only be
+// avoided early. The solver then opens strongly and plays its sharpest guess
+// every turn.
+func (s *Solver) careful() bool { return s.Max < 6 || s.Hard }
+
+// sharpest is the best fitting word, or a better-splitting elimination word.
+func (s *Solver) sharpest(cands, ranked []string) string {
+	best := ranked[0]
+	if pool := s.eliminators(cands, 1); len(pool) > 0 &&
+		s.expectedLeft(pool[0], cands) < s.expectedLeft(best, cands) {
+		return pool[0]
+	}
+	return best
 }
 
 // slip returns a decent word that keeps every green and every known letter
@@ -196,7 +272,7 @@ func (s *Solver) slip(cands []string) (string, bool) {
 	var options []string
 outer:
 	for _, w := range s.words {
-		if guessed[w] {
+		if guessed[w] || !s.allowed(w) {
 			continue
 		}
 		for i, c := range greens {
@@ -228,7 +304,7 @@ outer:
 	// Among the slips, a reasonably useful word, not a wild one.
 	ranked := s.rank(options, cands)
 	pool := ranked[:min(8, len(ranked))]
-	return pool[s.rng.IntN(len(pool))], true
+	return s.choose(pool), true
 }
 
 // bestForTwo maximises the chance of solving within this guess and the
@@ -251,7 +327,7 @@ func (s *Solver) bestForTwo(cands []string) (string, int) {
 			fits[c] = true
 		}
 		for _, g := range s.words {
-			if !fits[g] && bestWins < len(cands) {
+			if !fits[g] && bestWins < len(cands) && s.allowed(g) {
 				consider(g)
 			}
 		}
@@ -262,9 +338,32 @@ func (s *Solver) bestForTwo(cands []string) (string, int) {
 // singletons counts the answers in cands that g pins down to one word,
 // including g itself when it fits.
 func singletons(g string, cands []string) int {
-	buckets := map[string]int{}
+	// Small inputs are the common case inside the lookahead, so compare
+	// codes pairwise rather than clearing a full 243-entry table.
+	var small [16]int
+	if len(cands) <= len(small) {
+		codes := small[:len(cands)]
+		for i, a := range cands {
+			codes[i] = scoreCode(g, a)
+		}
+		n := 0
+		for i, c := range codes {
+			unique := true
+			for j, d := range codes {
+				if i != j && c == d {
+					unique = false
+					break
+				}
+			}
+			if unique {
+				n++
+			}
+		}
+		return n
+	}
+	var buckets [243]int
 	for _, a := range cands {
-		buckets[Score(g, a)]++
+		buckets[scoreCode(g, a)]++
 	}
 	n := 0
 	for _, size := range buckets {
@@ -282,15 +381,16 @@ func (s *Solver) bestForThree(cands, ranked []string) string {
 	shortlist := append(slices.Clone(ranked[:min(8, len(ranked))]), s.eliminators(cands, 8)...)
 	best, bestWins := shortlist[0], -1
 	for _, g := range shortlist {
-		buckets := map[string][]string{}
+		buckets := map[int][]string{}
 		for _, a := range cands {
-			p := Score(g, a)
+			p := scoreCode(g, a)
 			buckets[p] = append(buckets[p], a)
 		}
 		wins := 0
 		for p, bucket := range buckets {
-			if p == Solved {
-				wins++
+			if p == solvedCode || len(bucket) <= 2 {
+				// Guessing either of two words is sure to solve both.
+				wins += len(bucket)
 			} else {
 				_, w := s.bestForTwo(bucket)
 				wins += w
@@ -315,7 +415,7 @@ func (s *Solver) eliminators(cands []string, n int) []string {
 	}
 	var others []string
 	for _, w := range s.words {
-		if !fits[w] {
+		if !fits[w] && s.allowed(w) {
 			others = append(others, w)
 		}
 	}
@@ -325,14 +425,19 @@ func (s *Solver) eliminators(cands []string, n int) []string {
 
 // rank orders guesses by how few of cands they would leave on average.
 func (s *Solver) rank(guesses, cands []string) []string {
-	scores := make(map[string]float64, len(guesses))
-	for _, g := range guesses {
-		scores[g] = s.expectedLeft(g, cands)
+	type scored struct {
+		word  string
+		score float64
 	}
-	ranked := slices.Clone(guesses)
-	slices.SortStableFunc(ranked, func(a, b string) int {
-		return cmp.Compare(scores[a], scores[b])
-	})
+	all := make([]scored, len(guesses))
+	for i, g := range guesses {
+		all[i] = scored{g, s.expectedLeft(g, cands)}
+	}
+	slices.SortStableFunc(all, func(a, b scored) int { return cmp.Compare(a.score, b.score) })
+	ranked := make([]string, len(all))
+	for i, sc := range all {
+		ranked[i] = sc.word
+	}
 	return ranked
 }
 
@@ -346,13 +451,13 @@ func (s *Solver) expectedLeft(g string, cands []string) float64 {
 			sample[i] = cands[j]
 		}
 	}
-	buckets := map[string]int{}
+	var buckets [243]int
 	for _, a := range sample {
-		buckets[Score(g, a)]++
+		buckets[scoreCode(g, a)]++
 	}
 	sum := 0
-	for pattern, n := range buckets {
-		if pattern != Solved {
+	for code, n := range buckets {
+		if code != solvedCode {
 			sum += n * n
 		}
 	}
@@ -370,7 +475,7 @@ func (s *Solver) nearMiss(answer string) (string, bool) {
 	fit := map[string]int{}
 	var options []string
 	for _, w := range s.words {
-		if w == answer || guessed[w] {
+		if w == answer || guessed[w] || !s.allowed(w) {
 			continue
 		}
 		for _, t := range s.History {
@@ -388,20 +493,33 @@ func (s *Solver) nearMiss(answer string) (string, bool) {
 	}
 	slices.SortStableFunc(options, func(a, b string) int { return cmp.Compare(fit[b], fit[a]) })
 	pool := options[:min(4, len(options))]
-	return pool[s.rng.IntN(len(pool))], true
+	return s.choose(pool), true
 }
 
-// Play runs a full game against a known answer. Newer NYT answers are
-// missing from the original list, so the answer is added when absent.
-func Play(answer string, rng *rand.Rand, target, limit int) []Turn {
-	s := NewSolver(rng, target, limit)
-	if !slices.Contains(s.words, answer) {
-		s.words = append(slices.Clone(s.words), answer)
+// AddWords adds possible answers missing from the original list, such as
+// newer NYT answers.
+func (s *Solver) AddWords(words ...string) {
+	cloned := false
+	for _, w := range words {
+		if slices.Contains(s.words, w) {
+			continue
+		}
+		if !cloned {
+			s.words, cloned = slices.Clone(s.words), true
+		}
+		s.words = append(s.words, w)
 	}
-	return playWith(s, answer)
 }
 
-func playWith(s *Solver, answer string) []Turn {
+// Play runs a full game against a known answer with a default solver.
+func Play(answer string, rng *rand.Rand, target, limit int) []Turn {
+	return NewSolver(rng, target, limit).Solve(answer)
+}
+
+// Solve plays a full game against a known answer, using only the clues each
+// guess earns. The answer is added to the word list if it is missing.
+func (s *Solver) Solve(answer string) []Turn {
+	s.AddWords(answer)
 	for s.Turn() <= 6 {
 		guess, err := s.NextGuess()
 		if err != nil {

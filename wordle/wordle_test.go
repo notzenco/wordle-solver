@@ -20,6 +20,21 @@ func TestScoreRepeatedLetters(t *testing.T) {
 	}
 }
 
+func TestScoreCodeMatchesScore(t *testing.T) {
+	marks := map[byte]int{Grey: 0, Yellow: 1, Green: 2}
+	rng := rand.New(rand.NewPCG(9, 9))
+	for range 20000 {
+		g, a := Answers[rng.IntN(len(Answers))], Answers[rng.IntN(len(Answers))]
+		want, p := 0, Score(g, a)
+		for i, pow := 0, 1; i < 5; i, pow = i+1, pow*3 {
+			want += marks[p[i]] * pow
+		}
+		if got := scoreCode(g, a); got != want {
+			t.Fatalf("scoreCode(%s, %s) = %d, want %d (%s)", g, a, got, want, p)
+		}
+	}
+}
+
 func TestParsePattern(t *testing.T) {
 	for _, in := range []string{"gybbg", "21002", "🟩🟨⬛⬛🟩", "g y b b g"} {
 		if got, err := ParsePattern(in); err != nil || got != "gybbg" {
@@ -43,13 +58,12 @@ func TestEveryGuessIsACommonWord(t *testing.T) {
 }
 
 func TestNeverFails(t *testing.T) {
-	rng := rand.New(rand.NewPCG(2, 2))
+	t.Parallel()
 	failed := 0
-	for _, answer := range Answers {
-		h := Play(answer, rng, 0, 0)
+	for i, h := range playAll(Answers, 2, func(rng *rand.Rand) *Solver { return NewSolver(rng, 0, 0) }) {
 		if h[len(h)-1].Pattern != Solved {
 			failed++
-			t.Logf("failed on %s: %v", answer, h)
+			t.Logf("failed on %s: %v", Answers[i], h)
 		}
 	}
 	if failed > 0 {
@@ -84,21 +98,25 @@ func TestOpenersVary(t *testing.T) {
 func TestMaxCapsFinishTurn(t *testing.T) {
 	// Even an optimal solver needs a fifth guess for about 1.6% of answers,
 	// so a limit of 4 can only be met almost always; 5 always (6 is
-	// covered by TestNeverFails).
+	// covered by TestNeverFails). Three seeds, as one can hide a rare miss.
+	t.Parallel()
 	allowed := map[int]int{4: len(Answers) * 3 / 100, 5: 0}
 	for limit, allow := range allowed {
-		rng := rand.New(rand.NewPCG(4, 4))
 		late := 0
-		for _, answer := range Answers {
-			h := Play(answer, rng, 0, limit)
+		var games [][]Turn
+		for seed := range uint64(3) {
+			games = append(games, playAll(Answers, 40+seed, func(rng *rand.Rand) *Solver { return NewSolver(rng, 0, limit) })...)
+		}
+		allow *= 3
+		for i, h := range games {
 			if len(h) > limit || h[len(h)-1].Pattern != Solved {
 				late++
 				if allow == 0 {
-					t.Logf("max %d: %s took %v", limit, answer, h)
+					t.Logf("max %d: %s took %v", limit, Answers[i%len(Answers)], h)
 				}
 			}
 		}
-		t.Logf("max %d: %d of %d over the limit", limit, late, len(Answers))
+		t.Logf("max %d: %d of %d over the limit", limit, late, len(games))
 		if late > allow {
 			t.Errorf("max %d: %d games went over the limit, allowed %d", limit, late, allow)
 		}
@@ -149,7 +167,7 @@ func TestSometimesSlipsLikeAPerson(t *testing.T) {
 		for _, i := range rng.Perm(len(Answers))[:300] {
 			s := NewSolver(rng, 0, 0)
 			s.Sloppiness = sloppiness
-			if slips(playWith(s, Answers[i])) > 0 {
+			if slips(s.Solve(Answers[i])) > 0 {
 				games++
 			}
 		}
@@ -159,5 +177,93 @@ func TestSometimesSlipsLikeAPerson(t *testing.T) {
 	t.Logf("games with a slip: %d without sloppiness, %d with", base, sloppy)
 	if sloppy < base+30 {
 		t.Errorf("sloppiness added too few slips: %d -> %d of 300 games", base, sloppy)
+	}
+}
+
+func TestPrefersEverydayWords(t *testing.T) {
+	s := NewSolver(rand.New(rand.NewPCG(7, 7)), 0, 0)
+	house := 0
+	for range 2000 {
+		if s.choose([]string{"house", "nadir"}) == "house" {
+			house++
+		}
+	}
+	if house < 1600 {
+		t.Errorf("chose HOUSE over NADIR only %d of 2000 times", house)
+	}
+}
+
+func TestHardModeGuessesFollowTheRules(t *testing.T) {
+	t.Parallel()
+	games := playAll(Answers, 8, func(rng *rand.Rand) *Solver {
+		s := NewSolver(rng, 0, 0)
+		s.Hard = true
+		return s
+	})
+	lost := 0
+	for i, h := range games {
+		for k := 1; k < len(h); k++ {
+			if !HardValid(h[k].Guess, h[:k]) {
+				t.Fatalf("%s: guess %q breaks hard mode after %v", Answers[i], h[k].Guess, h[:k])
+			}
+		}
+		if h[len(h)-1].Pattern != Solved {
+			lost++
+		}
+	}
+	// Hard mode has traps no strategy escapes every time (_IGHT, _ATCH).
+	t.Logf("hard mode lost %d of %d", lost, len(games))
+	if lost*100 > len(games) {
+		t.Errorf("hard mode lost %d of %d games", lost, len(games))
+	}
+}
+
+func TestHardValid(t *testing.T) {
+	h := []Turn{{"crane", "gybbb"}} // C green, R yellow
+	cases := map[string]bool{"cider": true, "curry": true, "corny": true, "cloud": false, "rocky": false}
+	for w, want := range cases {
+		if got := HardValid(w, h); got != want {
+			t.Errorf("HardValid(%s) = %v, want %v", w, got, want)
+		}
+	}
+}
+
+func TestOpenerOverride(t *testing.T) {
+	s := NewSolver(rand.New(rand.NewPCG(11, 11)), 0, 0)
+	s.Opener = "adieu"
+	if g, _ := s.NextGuess(); g != "adieu" {
+		t.Errorf("first guess %q, want the chosen opener", g)
+	}
+	s = NewSolver(rand.New(rand.NewPCG(11, 11)), 0, 4)
+	s.Opener = "adieu"
+	if g, _ := s.NextGuess(); g == "adieu" || !slices.Contains(StrongOpeners, g) {
+		t.Errorf("under -max 4 first guess %q, want a strong opener instead of ADIEU", g)
+	}
+}
+
+func TestAddWords(t *testing.T) {
+	s := NewSolver(rand.New(rand.NewPCG(12, 12)), 0, 0)
+	before := len(s.Candidates())
+	s.AddWords("moxie", "house", "moxie")
+	cands := s.Candidates()
+	if len(cands) != before+1 || !slices.Contains(cands, "moxie") {
+		t.Errorf("want MOXIE added once to %d candidates, got %d", before, len(cands))
+	}
+	if len(Answers) != before {
+		t.Error("AddWords changed the shared Answers list")
+	}
+}
+
+func TestExcludeIsSoft(t *testing.T) {
+	s := NewSolver(rand.New(rand.NewPCG(13, 13)), 0, 0)
+	s.Exclude("cigar", "rebut")
+	if c := s.Candidates(); slices.Contains(c, "cigar") || len(c) != len(Answers)-2 {
+		t.Errorf("excluded words still candidates (%d left)", len(c))
+	}
+	// A repeated answer must still be found once nothing else fits.
+	s = NewSolver(rand.New(rand.NewPCG(14, 14)), 0, 0)
+	s.Exclude("cigar")
+	if h := s.Solve("cigar"); h[len(h)-1].Pattern != Solved {
+		t.Errorf("never found the repeated answer: %v", h)
 	}
 }

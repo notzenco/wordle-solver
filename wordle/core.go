@@ -4,6 +4,8 @@ package wordle
 import (
 	_ "embed"
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 )
 
@@ -19,6 +21,28 @@ var answersTxt string
 
 // Answers is the list of common five-letter words Wordle draws answers from.
 var Answers = strings.Fields(answersTxt)
+
+// frequency.txt holds how often each answer word appears in English film and
+// TV subtitles (FrequencyWords, OpenSubtitles 2018, CC BY-SA 4.0).
+//
+//go:embed data/frequency.txt
+var frequencyTxt string
+
+var frequency = func() map[string]float64 {
+	f := map[string]float64{}
+	fields := strings.Fields(frequencyTxt)
+	for i := 0; i+1 < len(fields); i += 2 {
+		n, _ := strconv.ParseFloat(fields[i+1], 64)
+		f[fields[i]] = n
+	}
+	return f
+}()
+
+// familiarity grows with how everyday a word is: HOUSE scores about eight
+// times NADIR. Words without a count score as the rarest.
+func familiarity(w string) float64 {
+	return math.Pow(math.Log1p(frequency[w])+1, 3)
+}
 
 // Score returns the feedback pattern for guess against answer, handling
 // repeated letters the way Wordle does.
@@ -43,7 +67,8 @@ func Score(guess, answer string) string {
 }
 
 type Turn struct {
-	Guess, Pattern string
+	Guess   string `json:"guess"`
+	Pattern string `json:"pattern"`
 }
 
 // Filter keeps the words consistent with every turn so far.
@@ -85,4 +110,56 @@ func ParsePattern(text string) (string, error) {
 
 func Emoji(pattern string) string {
 	return strings.NewReplacer("g", "🟩", "y", "🟨", "b", "⬛").Replace(pattern)
+}
+
+// solvedCode is scoreCode for an all-green result.
+const solvedCode = 242
+
+// scoreCode is Score as a base-3 number (grey 0, yellow 1, green 2), which
+// lets hot loops bucket results in an array instead of a map.
+func scoreCode(guess, answer string) int {
+	var green [5]bool
+	var unmatched [26]int8
+	code := 0
+	for i := range 5 {
+		if guess[i] == answer[i] {
+			green[i] = true
+		} else {
+			unmatched[answer[i]-'a']++
+		}
+	}
+	for i, pow := 0, 1; i < 5; i, pow = i+1, pow*3 {
+		switch c := guess[i] - 'a'; {
+		case green[i]:
+			code += 2 * pow
+		case unmatched[c] > 0:
+			code += pow
+			unmatched[c]--
+		}
+	}
+	return code
+}
+
+// HardValid reports whether Hard Mode accepts guess after history: every
+// green stays in place and every revealed letter is reused, as many times
+// as one earlier guess revealed it. Grey letters are allowed.
+func HardValid(guess string, history []Turn) bool {
+	for _, t := range history {
+		var need, have [26]int
+		for i := range 5 {
+			if t.Pattern[i] == Green && guess[i] != t.Guess[i] {
+				return false
+			}
+			if t.Pattern[i] != Grey {
+				need[t.Guess[i]-'a']++
+			}
+			have[guess[i]-'a']++
+		}
+		for c := range 26 {
+			if have[c] < need[c] {
+				return false
+			}
+		}
+	}
+	return true
 }

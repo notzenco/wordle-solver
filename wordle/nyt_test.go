@@ -49,5 +49,8 @@ func TestDateForNumber(t *testing.T) {
 		if got := DateForNumber(n).Format(time.DateOnly); got != want {
 			t.Errorf("DateForNumber(%d) = %s, want %s", n, got, want)
 		}
+		if got := NumberForDate(DateForNumber(n)); got != n {
+			t.Errorf("NumberForDate(%s) = %d, want %d", want, got, n)
+		}
 	}
 }

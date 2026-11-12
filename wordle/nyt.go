@@ -10,6 +10,13 @@ import (
 
 const NYTBaseURL = "https://www.nytimes.com"
 
+// NumberForDate returns the number of the puzzle published on day.
+func NumberForDate(day time.Time) int {
+	launch := time.Date(2021, time.June, 19, 12, 0, 0, 0, time.UTC)
+	noon := time.Date(day.Year(), day.Month(), day.Day(), 12, 0, 0, 0, time.UTC)
+	return int(noon.Sub(launch).Hours() / 24)
+}
+
 // DateForNumber returns the day of puzzle n, the number in the share text.
 // Puzzle 0 ran on launch day, 19 June 2021, and one has run every day since.
 func DateForNumber(n int) time.Time {
