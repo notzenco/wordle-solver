@@ -18,8 +18,6 @@ import (
 const usage = `usage:
   wordle-solver [auto] [-date YYYY-MM-DD | -id N] [-fresh] [-dry]   solve a day's NYT puzzle by itself
   wordle-solver auto -from N [-to M] [-fresh]                       solve a range of puzzles
-  wordle-solver auto -catchup                                       solve every day since the last game
-  wordle-solver schedule [-at HH:MM] [-remove]                      solve each day automatically (off until set up)
   wordle-solver clean [-y]                                          delete your profile, history and cached answers
   wordle-solver update [-force]                                     install the latest release
   wordle-solver version                                             print the version
@@ -37,7 +35,6 @@ options for every command:
   -copy       copy the share grid to the clipboard
   -seed N     make choices reproducible
   -home DIR   keep player data in DIR (default $WORDLE_SOLVER_HOME or the user config folder)
-  -log FILE   append all output to FILE
 `
 
 type options struct {
@@ -67,14 +64,10 @@ func main() {
 	from := fs.Int("from", -1, "")
 	to := fs.Int("to", -1, "")
 	fresh := fs.Bool("fresh", false, "")
-	catchup := fs.Bool("catchup", false, "")
-	at := fs.String("at", "00:05", "")
-	remove := fs.Bool("remove", false, "")
 	dry := fs.Bool("dry", false, "")
 	yes := fs.Bool("y", false, "")
 	force := fs.Bool("force", false, "")
 	home := fs.String("home", "", "")
-	logFile := fs.String("log", "", "")
 	showVersion := fs.Bool("version", false, "")
 	fs.Parse(args)
 
@@ -86,13 +79,6 @@ func main() {
 	}
 	if *home != "" {
 		os.Setenv("WORDLE_SOLVER_HOME", *home)
-	}
-	if *logFile != "" {
-		f, err := os.OpenFile(*logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
-		if err != nil {
-			fail(err.Error())
-		}
-		os.Stdout, os.Stderr = f, f
 	}
 
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
@@ -113,15 +99,6 @@ func main() {
 	case "auto":
 		if *date != "" && *id >= 0 {
 			fail("use -date or -id, not both")
-		}
-		if *catchup {
-			if *date != "" || *id >= 0 || *dry || *from >= 0 || *to >= 0 {
-				fail("-catchup can't be combined with -date, -id, -dry, -from or -to")
-			}
-			store := loadStore(rng)
-			fmt.Printf("== %s\n", time.Now().Format("2006-01-02 15:04"))
-			autoRange(rng, opts, store, store.Unplayed(wordle.NumberForDate(time.Now())), false)
-			return
 		}
 		if *from >= 0 || *to >= 0 {
 			if *date != "" || *id >= 0 || *dry {
@@ -157,8 +134,6 @@ func main() {
 			store = loadStore(rng)
 		}
 		auto(rng, opts, store, day, *fresh)
-	case "schedule":
-		scheduleCmd(*at, *remove)
 	case "clean":
 		clean(*yes)
 	case "update":

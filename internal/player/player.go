@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
-	"maps"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -169,20 +168,6 @@ func (s *Store) AnswersBefore(number int) []string {
 	return slices.Compact(words)
 }
 
-// Unplayed lists the puzzles to catch up on as of today: every day since the
-// last game played, or just today for a new player.
-func (s *Store) Unplayed(today int) []int {
-	last := today - 1
-	if len(s.History) > 0 {
-		last = slices.Max(slices.Collect(maps.Keys(s.History)))
-	}
-	var out []int
-	for n := last + 1; n <= today; n++ {
-		out = append(out, n)
-	}
-	return out
-}
-
 // Missing lists the puzzle numbers from 0 to upto whose answers are unknown.
 func (s *Store) Missing(upto int) []int {
 	var out []int
@@ -200,23 +185,4 @@ func (s *Store) Opener(rng *rand.Rand) string {
 		return s.Profile.Openers[1+rng.IntN(len(s.Profile.Openers)-1)]
 	}
 	return s.Profile.Openers[0]
-}
-
-// Target draws a finishing turn up to limit that pulls the player's record
-// towards a typical spread: turns the record is short of are favoured, and
-// turns it already has too many of are rarely drawn.
-func (s *Store) Target(rng *rand.Rand, limit int) int {
-	counts := map[int]int{}
-	for _, g := range s.History {
-		if g.Solved() {
-			counts[len(g.Turns)]++
-		}
-	}
-	games := float64(len(s.History) + 1)
-	return wordle.DrawTurn(rng, limit, func(turn int) float64 {
-		want := wordle.FinishWeights[turn]
-		short := want*games - float64(counts[turn])
-		// A small floor keeps every turn possible, as luck would.
-		return max(short, 0) + 0.02*want
-	})
 }

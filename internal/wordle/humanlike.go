@@ -49,8 +49,8 @@ var StrongOpeners = []string{
 	"later", "crane", "train",
 }
 
-// FinishWeights is roughly how often a regular player finishes on each turn.
-var FinishWeights = map[int]float64{2: 0.04, 3: 0.27, 4: 0.40, 5: 0.22, 6: 0.07}
+// finishWeights is roughly how often a regular player finishes on each turn.
+var finishWeights = map[int]float64{2: 0.04, 3: 0.27, 4: 0.40, 5: 0.22, 6: 0.07}
 
 // Above this many candidates, rank guesses against a sample to stay fast.
 const sampleLimit = 400
@@ -69,23 +69,18 @@ func NewSolver(rng *rand.Rand, target, limit int) *Solver {
 	return &Solver{Target: min(target, limit), Max: limit, Sloppiness: 0.2, words: Answers, rng: rng}
 }
 
-// drawTarget samples the human finishing spread, cut off at limit.
+// drawTarget samples finishWeights, cut off at limit.
 func drawTarget(rng *rand.Rand, limit int) int {
-	return DrawTurn(rng, limit, func(turn int) float64 { return FinishWeights[turn] })
-}
-
-// DrawTurn picks a finishing turn from 2 to limit with the given weights.
-func DrawTurn(rng *rand.Rand, limit int, weight func(turn int) float64) int {
 	total := 0.0
 	for turn := 2; turn <= limit; turn++ {
-		total += weight(turn)
+		total += finishWeights[turn]
 	}
 	x := rng.Float64() * total
 	for turn := 2; turn <= limit; turn++ {
-		if x < weight(turn) {
+		if x < finishWeights[turn] {
 			return turn
 		}
-		x -= weight(turn)
+		x -= finishWeights[turn]
 	}
 	return limit
 }

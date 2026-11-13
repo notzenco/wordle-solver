@@ -22,9 +22,6 @@ func newSolver(rng *rand.Rand, opts options, store *player.Store) *wordle.Solver
 	if store != nil {
 		s.AddWords(store.KnownAnswers()...)
 		s.Opener = store.Opener(rng)
-		if opts.target == 0 {
-			s.Target = store.Target(rng, opts.max)
-		}
 	}
 	return s
 }
@@ -33,7 +30,7 @@ func auto(rng *rand.Rand, opts options, store *player.Store, day time.Time, fres
 	number := wordle.NumberForDate(day)
 	if store != nil && !fresh {
 		if g, ok := store.Game(number); ok {
-			fmt.Printf("Wordle #%s for %s (already played; -fresh plays it again)\n\n", thousands(number), g.Date)
+			fmt.Printf("%s(Already played; -fresh plays it again.)\n\n", autoHeader(number, g.Date))
 			printGame(thousands(number)+" ", g.Turns, opts.copy)
 			return
 		}
@@ -49,7 +46,7 @@ func auto(rng *rand.Rand, opts options, store *player.Store, day time.Time, fres
 		store.AddAnswer(p.Number, p.Solution)
 	}
 	turns := solverFor(rng, opts, store, p.Number).Solve(p.Solution)
-	fmt.Printf("Wordle #%s for %s\n\n", thousands(p.Number), p.Date)
+	fmt.Printf("%s\n", autoHeader(p.Number, p.Date))
 	printGame(thousands(p.Number)+" ", turns, opts.copy)
 
 	if store != nil {
@@ -59,6 +56,14 @@ func auto(rng *rand.Rand, opts options, store *player.Store, day time.Time, fres
 		}
 	}
 }
+
+// autoHeader introduces a game against a fetched answer and says how that
+// answer is used.
+func autoHeader(number int, date string) string {
+	return fmt.Sprintf("Wordle #%s for %s\n%s\n", thousands(number), date, answerNote)
+}
+
+const answerNote = "The answer was looked up from the published daily puzzle and used only to score each guess."
 
 // solverFor is newSolver for puzzle number, also ruling out earlier answers
 // for a player in the habit of skipping them.
@@ -74,9 +79,10 @@ func solverFor(rng *rand.Rand, opts options, store *player.Store, number int) *w
 // after every game so an interrupted run keeps its progress.
 func autoRange(rng *rand.Rand, opts options, store *player.Store, numbers []int, fresh bool) {
 	if len(numbers) == 0 {
-		fmt.Println("Nothing to play: today's puzzle is already done.")
 		return
 	}
+	fmt.Println(answerNote)
+	fmt.Println()
 	for _, n := range numbers {
 		if g, ok := store.Game(n); ok && !fresh {
 			fmt.Printf("%s  (already played)\n", summary(n, g.Turns))
