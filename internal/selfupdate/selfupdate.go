@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -165,6 +166,22 @@ func verifyChecksum(data []byte, name string, sums []byte) error {
 	return fmt.Errorf("checksums.txt does not list %s", name)
 }
 
+// maxBinary caps the unpacked executable, so a small archive that expands
+// enormously can't exhaust memory. Real builds are a few megabytes.
+var maxBinary int64 = 200 << 20
+
+// readCapped reads r, failing if it holds more than maxBinary bytes.
+func readCapped(r io.Reader) ([]byte, error) {
+	b, err := io.ReadAll(io.LimitReader(r, maxBinary+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(b)) > maxBinary {
+		return nil, fmt.Errorf("the binary in the archive is larger than %d MB; not installing it", maxBinary>>20)
+	}
+	return b, nil
+}
+
 // extractBinary returns the wordle-solver executable inside a release archive.
 func extractBinary(archive []byte, goos string) ([]byte, error) {
 	if goos == "windows" {
@@ -179,7 +196,7 @@ func extractBinary(archive []byte, goos string) ([]byte, error) {
 					return nil, err
 				}
 				defer r.Close()
-				return io.ReadAll(r)
+				return readCapped(r)
 			}
 		}
 		return nil, errors.New("no wordle-solver.exe inside")
@@ -198,7 +215,7 @@ func extractBinary(archive []byte, goos string) ([]byte, error) {
 			return nil, err
 		}
 		if h.Typeflag == tar.TypeReg && path.Base(h.Name) == "wordle-solver" {
-			return io.ReadAll(tr)
+			return readCapped(tr)
 		}
 	}
 }
@@ -208,9 +225,23 @@ func extractBinary(archive []byte, goos string) ([]byte, error) {
 // program but does let it be renamed, so the old one is moved aside to
 // exe.old and deleted on a later run.
 func replaceExe(exe string, binary []byte) error {
-	tmp := exe + ".new"
-	if err := os.WriteFile(tmp, binary, 0o755); err != nil {
+	f, err := os.CreateTemp(filepath.Dir(exe), filepath.Base(exe)+"-*.new")
+	if err != nil {
 		return fmt.Errorf("can't write next to %s (%w); rerun with permission to change it", exe, err)
+	}
+	tmp := f.Name()
+	if _, err := f.Write(binary); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	if err := os.Chmod(tmp, 0o755); err != nil {
+		os.Remove(tmp)
+		return err
 	}
 	old := exe + ".old"
 	os.Remove(old)

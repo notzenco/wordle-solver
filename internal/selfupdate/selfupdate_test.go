@@ -151,3 +151,45 @@ func TestSelfUpdateNoRelease(t *testing.T) {
 		t.Errorf("err = %v, want a 'no release' error", err)
 	}
 }
+
+func TestExtractRefusesOversizedBinaries(t *testing.T) {
+	defer func(n int64) { maxBinary = n }(maxBinary)
+	maxBinary = 1 << 10
+	big := bytes.Repeat([]byte{0}, 4<<10) // compresses to almost nothing, like a bomb
+	for _, goos := range []string{"linux", "windows"} {
+		var archive bytes.Buffer
+		if goos == "windows" {
+			zw := zip.NewWriter(&archive)
+			w, _ := zw.Create("x/wordle-solver.exe")
+			w.Write(big)
+			zw.Close()
+		} else {
+			gz := gzip.NewWriter(&archive)
+			tw := tar.NewWriter(gz)
+			tw.WriteHeader(&tar.Header{Name: "x/wordle-solver", Mode: 0o755, Size: int64(len(big)), Typeflag: tar.TypeReg})
+			tw.Write(big)
+			tw.Close()
+			gz.Close()
+		}
+		if _, err := extractBinary(archive.Bytes(), goos); err == nil {
+			t.Errorf("%s: oversized binary extracted", goos)
+		}
+	}
+}
+
+func TestReplaceExeLeavesNoFixedTempName(t *testing.T) {
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "wordle-solver")
+	os.WriteFile(exe, []byte("old"), 0o755)
+	// A planted file at the old fixed name must not be written through.
+	os.WriteFile(exe+".new", []byte("planted"), 0o644)
+	if err := replaceExe(exe, []byte("new")); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(exe); string(b) != "new" {
+		t.Fatalf("exe holds %q", b)
+	}
+	if b, _ := os.ReadFile(exe + ".new"); string(b) != "planted" {
+		t.Fatalf("wrote through the fixed temp name: %q", b)
+	}
+}
