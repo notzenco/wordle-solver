@@ -8,7 +8,8 @@ import (
 )
 
 // colour reports whether stdout is a terminal that should get coloured tiles.
-// NO_COLOR (https://no-color.org) turns them off.
+// NO_COLOR (https://no-color.org) turns them off, and a Windows console that
+// can't show colour codes gets plain tiles.
 func colour() bool {
 	if os.Getenv("NO_COLOR") != "" || os.Getenv("TERM") == "dumb" {
 		return false
@@ -18,7 +19,7 @@ func colour() bool {
 		return false
 	}
 	info, err := f.Stat()
-	return err == nil && info.Mode()&os.ModeCharDevice != 0
+	return err == nil && info.Mode()&os.ModeCharDevice != 0 && enableVT(f)
 }
 
 // tiles shows a guess with its colours: lettered tiles in a terminal, or the
