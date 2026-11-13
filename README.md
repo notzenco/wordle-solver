@@ -69,7 +69,9 @@ go run ./cmd/wordle-solver bench --strategy all  # the same comparison in the te
 Download the archive for your system from the
 [latest release](https://github.com/notzenco/wordle-solver/releases/latest)
 (macOS, Linux and Windows, on Intel/AMD and ARM), unpack it and put
-`wordle-solver` (or `wordle-solver.exe`) somewhere on your `PATH`.
+`wordle-solver` (or `wordle-solver.exe`) somewhere on your `PATH`. On
+macOS and Linux the archive also holds `wsolve`, a shorter name for the same
+program; keep it beside `wordle-solver`.
 `checksums.txt` lists each archive's SHA-256. The binaries are not signed:
 on macOS, clear the download quarantine with
 `xattr -d com.apple.quarantine wordle-solver`; on Windows, SmartScreen may
@@ -81,7 +83,14 @@ Or build from source with Go:
 go install github.com/notzenco/wordle-solver/cmd/wordle-solver@latest
 ```
 
-From a checkout, use `go install ./cmd/wordle-solver`. `wordle-solver
+To add the short name after `go install`, link it beside the binary:
+
+```sh
+ln -s "$(command -v wordle-solver)" "$(dirname "$(command -v wordle-solver)")/wsolve"
+```
+
+On Windows, `doskey wsolve=wordle-solver $*` adds it for the current
+console. From a checkout, use `go install ./cmd/wordle-solver`. `wordle-solver
 version` prints your version, and `wordle-solver update` replaces the binary
 with the latest release after checking it against `checksums.txt` (a build
 from a checkout needs `-force`).
@@ -89,7 +98,7 @@ from a checkout needs `-force`).
 ## Usage
 
 ```sh
-wordle-solver help                    # every command; 'help COMMAND' or 'COMMAND --help' for its options
+wordle-solver help                    # every command (wsolve works as a shorter name); 'help COMMAND' or 'COMMAND --help' for its options
 wordle-solver play                    # play today's puzzle yourself: coloured tiles, no hints
 wordle-solver play --random           # practise on a random answer (offline, not saved)
 wordle-solver assist                  # type your own words; it fills in the colours and suggests the next

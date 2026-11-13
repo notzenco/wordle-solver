@@ -19,6 +19,10 @@ for target in $targets; do
   CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath \
     -ldflags "-s -w -X main.version=$version" -o "$stage/$exe" ./cmd/wordle-solver
   cp README.md LICENSE "$stage/"
+  # wsolve is a shorter name for the same program. A symlink keeps
+  # 'update' replacing the one real binary; zip can't hold one, so Windows
+  # users add the alias themselves (see the README).
+  [ "$os" = windows ] || ln -s wordle-solver "$stage/wsolve"
   if [ "$os" = windows ]; then
     (cd dist && zip -qr "$name.zip" "$name")
   else
