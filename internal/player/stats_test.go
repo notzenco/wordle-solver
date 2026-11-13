@@ -66,21 +66,6 @@ func TestAnswersBefore(t *testing.T) {
 	}
 }
 
-func TestUnplayed(t *testing.T) {
-	s, _ := Load(t.TempDir(), rand.New(rand.NewPCG(5, 5)))
-	if got := s.Unplayed(50); !slices.Equal(got, []int{50}) {
-		t.Errorf("new player: Unplayed = %v, want just today", got)
-	}
-	s.Record(46, "", game(46, 4))
-	if got := s.Unplayed(50); !slices.Equal(got, []int{47, 48, 49, 50}) {
-		t.Errorf("Unplayed = %v, want the days since the last game", got)
-	}
-	s.Record(50, "", game(50, 4))
-	if got := s.Unplayed(50); len(got) != 0 {
-		t.Errorf("Unplayed = %v after playing today", got)
-	}
-}
-
 func TestSomeProfilesSkipPastAnswers(t *testing.T) {
 	skip := 0
 	for i := range uint64(40) {

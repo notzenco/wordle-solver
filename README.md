@@ -39,8 +39,6 @@ wordle-solver                     # solve today's NYT puzzle by itself
 wordle-solver -date 2026-11-12    # solve another day's puzzle
 wordle-solver --id 0              # solve by puzzle number (0 = CIGAR, 2021-06-19)
 wordle-solver -from 1900          # solve every puzzle from #1900 to today (-to N to stop)
-wordle-solver -catchup            # solve every day since your last game
-wordle-solver schedule            # solve each day automatically (off until you run this)
 wordle-solver clean               # delete your profile, history and cached answers
 wordle-solver stats               # your NYT-style statistics
 wordle-solver sync                # download every past answer (once; a few minutes)
@@ -59,9 +57,9 @@ The default `auto` command looks up the day's answer from NYT's public
 daily-puzzle endpoint (`/svc/wordle/v2/YYYY-MM-DD.json`). It then plays its
 human-looking game against that answer and prints the guesses and the share
 grid, under a header such as `Wordle #1,973 for 2026-11-13` whose number
-works with `--id`. Dates follow your local time zone, as on the site. It
-still plays a real game, using only the colours each guess earns; the answer
-is used only to score those guesses.
+works with `--id`. Dates follow your local time zone, as on the site. The
+output says that the answer was looked up: it plays using only the colours
+each guess earns, and the answer is used only to score those guesses.
 
 NYT has added answers that aren't in the original list, such as MOXIE. Every
 answer the solver fetches is cached, and `sync` downloads all past answers
@@ -72,21 +70,17 @@ In `play`, type the suggested word into Wordle and enter the colours it
 showed as `g`/`y`/`b` (or `2`/`1`/`0`). To play your own word instead,
 enter `word pattern`, for example `crane bygbb`.
 
-## One consistent player
+## Profile and history
 
-`auto` and `play` play as the same person every day. On first use the
-solver creates a profile with two favourite openers, used about 80/20. Each
-`auto` game is saved, and each day's target turn is drawn to fill whatever
-the running record is short of, so a month of games has a believable spread
-rather than independent random results.
+`auto` and `play` share a profile, created on first use, with two
+favourite openers used about 80/20. Each `auto` game's target turn is drawn
+independently, as for `sim`. Each `auto` game is saved, and rerunning a day
+already played shows the saved game. `-fresh` plays it again and replaces
+it, and `-dry` neither reads nor saves anything.
 
-A real player only plays each puzzle once, so rerunning a day you have
-already played shows the recorded game. `-fresh` plays it again and
-replaces the record, and `-dry` neither reads nor saves anything.
-
-`-from`/`-to` fill in a range of days in order, skipping days already
-played. `stats` shows games played, win %, current and best streak and the
-guess spread, as the site does.
+`-from`/`-to` play a range of days in order, skipping days already played.
+`stats` summarises the saved games exactly as they were played: games
+played, win %, current and best streak and the guess spread.
 
 Some players know NYT's past answers and skip them. New profiles get this
 habit half the time (`skip_past_answers` in `profile.json`, which you can
@@ -105,31 +99,13 @@ the user config directory:
 
 Set `WORDLE_SOLVER_HOME`, or pass `-home DIR`, to use another folder.
 
-`wordle-solver clean` deletes that data and the daily run's log, after
-asking (`-y` skips the question), so the next game starts a new player. It
-removes only the files the solver writes, so other files in a custom
-`WORDLE_SOLVER_HOME` folder are kept. It leaves a daily run in place; remove
-that with `schedule -remove`.
+`wordle-solver clean` deletes that data after asking (`-y` skips the
+question), so the next game starts a new profile. It removes only the files
+the solver writes, so other files in a custom `WORDLE_SOLVER_HOME` folder are
+kept.
 
-## Daily automatic play
-
-Nothing runs on its own until you ask: `wordle-solver schedule` sets up a
-daily run with your system's own scheduler. Each day at 00:05 local time
-(`-at HH:MM` to change it) it runs `wordle-solver auto -catchup`, which plays
-every day since your last game, so the streak survives a machine that was
-off or asleep. Run `wordle-solver schedule -remove` to stop it. Rerun
-`schedule` after moving the binary, as the job records its path.
-
-| System | Scheduler | Log |
-| --- | --- | --- |
-| macOS | launchd job `~/Library/LaunchAgents/wordle-solver.daily.plist`; runs a missed job on wake | `~/Library/Logs/wordle-solver.log` |
-| Linux | systemd user timer `wordle-solver.timer` with `Persistent=true` | `~/.local/state/wordle-solver/wordle-solver.log` |
-| Windows | Task Scheduler task `wordle-solver daily`, set to run as soon as possible after a missed start | `%LocalAppData%\wordle-solver\wordle-solver.log` |
-
-On Linux the timer runs while you are logged in; `loginctl enable-linger`
-lets it run when you are not. Without systemd, run
-`wordle-solver auto -catchup -log FILE` daily from cron instead. `-copy`
-uses `pbcopy` on macOS, `clip` on Windows, and `wl-copy` or `xclip` on Linux.
+`-copy` uses `pbcopy` on macOS, `clip` on Windows, and `wl-copy` or `xclip`
+on Linux.
 
 ## Releases
 
@@ -181,7 +157,6 @@ Results over every answer:
 | `cmd/wordle-solver` | The command: flags, subcommands and output |
 | `internal/wordle` | Scoring, the human-looking solver and the NYT puzzle lookup |
 | `internal/player` | The saved profile, game history, answer cache and statistics |
-| `internal/schedule` | The daily run, via launchd, systemd or Task Scheduler |
 | `internal/selfupdate` | The `update` command's download, checksum check and binary swap |
 | `scripts/build-release.sh` | Builds the release archives; CI and the release workflow run it |
 

@@ -1,7 +1,6 @@
 package player
 
 import (
-	"math"
 	"math/rand/v2"
 	"slices"
 	"testing"
@@ -68,47 +67,5 @@ func TestOpenerFavoursTheFirstFavourite(t *testing.T) {
 	}
 	if first < 700 || first > 900 {
 		t.Errorf("first favourite used %d of 1000 times, want about 800", first)
-	}
-}
-
-func TestTargetFillsGapsInTheRecord(t *testing.T) {
-	s, _ := Load(t.TempDir(), rand.New(rand.NewPCG(5, 5)))
-	for n := range 20 {
-		s.Record(n, "", game(n, 3))
-	}
-	rng := rand.New(rand.NewPCG(6, 6))
-	for range 20 {
-		if got := s.Target(rng, 6); got == 3 {
-			t.Fatal("drew another 3 after twenty 3s in a row")
-		}
-	}
-}
-
-func TestTargetsTrackATypicalSpread(t *testing.T) {
-	s, _ := Load(t.TempDir(), rand.New(rand.NewPCG(7, 7)))
-	rng := rand.New(rand.NewPCG(8, 8))
-	const games = 300
-	for n := range games {
-		s.Record(n, "", game(n, s.Target(rng, 6)))
-	}
-	counts := map[int]int{}
-	for _, g := range s.History {
-		counts[len(g.Turns)]++
-	}
-	for turn, w := range wordle.FinishWeights {
-		got := float64(counts[turn]) / games
-		if math.Abs(got-w) > 0.02 {
-			t.Errorf("turn %d: %.3f of games, want %.3f ± 0.02", turn, got, w)
-		}
-	}
-}
-
-func TestTargetRespectsLimit(t *testing.T) {
-	s, _ := Load(t.TempDir(), rand.New(rand.NewPCG(9, 9)))
-	rng := rand.New(rand.NewPCG(10, 10))
-	for range 200 {
-		if got := s.Target(rng, 4); got < 2 || got > 4 {
-			t.Fatalf("target %d outside 2..4", got)
-		}
 	}
 }

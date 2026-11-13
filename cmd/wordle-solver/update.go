@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"time"
@@ -35,4 +37,16 @@ func update(force bool) {
 		return
 	}
 	fmt.Printf("Updated wordle-solver %s to %s.\n", current, installed)
+}
+
+// executable is the path of the running binary, with symlinks resolved.
+func executable() string {
+	exe, err := os.Executable()
+	if err == nil {
+		exe, err = filepath.EvalSymlinks(exe)
+	}
+	if err != nil {
+		fail(err.Error())
+	}
+	return exe
 }
