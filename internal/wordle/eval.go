@@ -59,6 +59,8 @@ func (st Strategy) PlayPool(answer string, hard bool, pool []string) []Turn {
 	return history
 }
 
-// FrequencyWeight supplies a positive subtitle-count weight for evaluation
-// baselines, smoothing words absent from the frequency data with one count.
-func FrequencyWeight(w string) float64 { return frequency[w] + 1 }
+// FrequencyWeight is the prior for the eval's frequency baseline: the same
+// familiarity score the solver uses. Raw subtitle counts are so skewed that a
+// few very common words take nearly all the weight, which scored worse than
+// a uniform guess over the answers.
+func FrequencyWeight(w string) float64 { return familiarity(w) }

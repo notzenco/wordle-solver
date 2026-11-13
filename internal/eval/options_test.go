@@ -51,3 +51,20 @@ func TestOptionsEmptyHistory(t *testing.T) {
 		t.Fatal("seed ignored")
 	}
 }
+
+// Answers are mostly common words, so a frequency prior should beat
+// guessing uniformly among the offered options.
+func TestFrequencyBaselineBeatsUniformOnAnswers(t *testing.T) {
+	answers := Sample("answers", 300, 7)
+	var freq, uniform float64
+	for i, a := range answers {
+		opts := append(Options(nil, 63, 0, uint64(i)), a)
+		probs := map[string]float64{a: 1}
+		m := Measure(a, opts, probs)
+		freq += m.FrequencyLogLoss
+		uniform += m.UniformLogLoss
+	}
+	if freq >= uniform {
+		t.Fatalf("frequency baseline %.3f is no better than uniform %.3f", freq/300, uniform/300)
+	}
+}
