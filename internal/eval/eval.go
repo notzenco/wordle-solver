@@ -103,6 +103,7 @@ type Attempt struct {
 	Options      []string
 	Metrics      *Metrics
 	Inconsistent bool
+	Free         bool // rejected without using a turn (PlayOptions.Retries)
 }
 type Result struct {
 	Answer           string
@@ -144,7 +145,8 @@ func PlayWithOptions(p Player, answer, model string, hard bool, opts PlayOptions
 		valid[w] = true
 	}
 	history := []wordle.Turn{}
-	for turn := 0; turn < 6; turn++ {
+	retries := 0
+	for turn := 0; turn < 6; {
 		t := time.Now()
 		var offered []string
 		if opts.Candidates {
@@ -153,7 +155,6 @@ func PlayWithOptions(p Player, answer, model string, hard bool, opts PlayOptions
 		reply, err := p.Guess(Observation{History: append([]wordle.Turn(nil), history...), Attempts: turn, Hard: hard, Options: offered})
 		a := Attempt{Reply: reply, Duration: time.Since(t), Options: offered, Metrics: Measure(answer, offered, reply.Probabilities)}
 		r.Tokens += reply.Tokens
-		r.Guesses++
 		if reply.Model != "" && reply.Model != model {
 			r.Rerouted = true
 		}
@@ -176,6 +177,15 @@ func PlayWithOptions(p Player, answer, model string, hard bool, opts PlayOptions
 			a.Pattern = wordle.Score(guess, answer)
 			history = append(history, wordle.Turn{Guess: guess, Pattern: a.Pattern})
 			r.Solved = a.Pattern == wordle.Solved
+		}
+		rejected := a.Problem == "malformed" || a.Problem == "invalid word" || a.Problem == "hard mode violation"
+		if rejected && retries < opts.Retries {
+			a.Free = true
+			retries++
+		} else {
+			r.Guesses++
+			turn++
+			retries = 0
 		}
 		r.Attempts = append(r.Attempts, a)
 		if errors.Is(err, ErrDecisionModel) {

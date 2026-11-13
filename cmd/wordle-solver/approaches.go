@@ -115,11 +115,12 @@ func (m *modelSuggester) suggest(history []wordle.Turn, hard bool) (string, stri
 }
 
 // play runs one whole game through the eval harness, so the model sees only
-// the colours its guesses earn and unusable replies waste a turn.
+// the colours its guesses earn. As in the game, a rejected word doesn't use a
+// turn, up to three times per turn; after that it does.
 func (m *modelSuggester) play(answer string, hard bool) modeleval.Result {
 	for {
 		r := modeleval.PlayWithOptions(m.player(), answer, m.model, hard,
-			modeleval.PlayOptions{Candidates: m.kind == "systemone", MaxOptions: m.maxOptions, Seed: m.rng.Uint64()})
+			modeleval.PlayOptions{Candidates: m.kind == "systemone", MaxOptions: m.maxOptions, Seed: m.rng.Uint64(), Retries: 3})
 		if r.Error == modeleval.ErrDecisionModel.Error() && m.autoKind {
 			m.detected()
 			continue
@@ -246,7 +247,11 @@ func autoClues(by string, m *modelSuggester, p puzzle, opts options) {
 				fmt.Fprintln(stdout, tiles(a.Guess, a.Pattern))
 				continue
 			}
-			fmt.Fprintf(stdout, "wasted turn: %s %s\n", a.Problem, quoteReply(a.Reply.Text))
+			if a.Free {
+				fmt.Fprintf(stdout, "rejected, no turn used: %s %s\n", a.Problem, quoteReply(a.Reply.Text))
+			} else {
+				fmt.Fprintf(stdout, "turn used without a guess: %s %s\n", a.Problem, quoteReply(a.Reply.Text))
+			}
 		}
 		if r.Error != "" {
 			fail(r.Error)

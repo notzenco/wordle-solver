@@ -71,11 +71,15 @@ func practiceAnswer(t *testing.T, args ...string) string {
 
 func TestPlayYourselfScoresGuessesWithTiles(t *testing.T) {
 	t.Setenv("WORDLE_SOLVER_HOME", t.TempDir())
-	code, out, errOut := runWith(t, "qzxvw\naahed\nhello\n", "play", "--random")
+	code, out, errOut := runWith(t, "ab\nqzxvw\naahed\nhello\n", "play", "--random")
 	if code != 0 {
 		t.Fatalf("code %d: %s", code, errOut)
 	}
-	for _, want := range []string{"Practice puzzle", "isn't in the word list", "A A H E D   ", "H E L L O   "} {
+	// Like the game, rejected words don't use a guess.
+	if n := strings.Count(out, "guess 1> "); n != 3 || !strings.Contains(out, "guess 2> ") || strings.Contains(out, "guess 4> ") {
+		t.Errorf("rejected words used guesses:\n%s", out)
+	}
+	for _, want := range []string{"Practice puzzle", "type a five-letter word", "isn't in the word list", "A A H E D   ", "H E L L O   "} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output lacks %q:\n%s", want, out)
 		}
