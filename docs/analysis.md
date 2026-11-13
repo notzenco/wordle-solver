@@ -15,7 +15,7 @@ It replays every game, rewrites the generated sections of this file (between
 `<!-- generated:… -->` markers), and writes [`results.json`](results.json)
 and the charts in [`img/`](img). The strategies are deterministic, so
 everything except the runtimes comes out the same on every machine. The
-same comparison prints in the terminal with `wordle-solver bench -strategy all`.
+same comparison prints in the terminal with `wordle-solver bench --strategy all`.
 
 <!-- generated:environment -->
 Generated with go1.27.3 on darwin/arm64 (18 CPUs), 2315 answers, at most 6 guesses.

@@ -61,7 +61,7 @@ everything with:
 
 ```sh
 go run ./tools/report                           # rewrites docs/ and this table
-go run ./cmd/wordle-solver bench -strategy all  # the same comparison in the terminal
+go run ./cmd/wordle-solver bench --strategy all  # the same comparison in the terminal
 ```
 
 ## Install
@@ -89,30 +89,37 @@ from a checkout needs `-force`).
 ## Usage
 
 ```sh
-wordle-solver play                  # suggests guesses while you play
-wordle-solver sim crazy             # watch it solve a given answer
-wordle-solver bench -strategy all   # compare the five strategies
-wordle-solver bench -strategy entropy -hard
-wordle-solver bench                 # results of the human-like model over every answer
-wordle-solver                       # solve today's published puzzle (see Answer data)
-wordle-solver -date 2026-11-12      # solve another day's puzzle
-wordle-solver -id 0                 # solve by puzzle number (0 is 2021-06-19)
-wordle-solver -from 1900 -to 1910   # solve a range of puzzles
-wordle-solver stats                 # statistics for the games you have saved
-wordle-solver sync                  # cache every past answer (a few minutes)
-wordle-solver clean                 # delete the saved profile, games and answers
+wordle-solver help                    # every command; 'help COMMAND' or 'COMMAND --help' for its options
+wordle-solver play                    # suggests guesses while you play
+wordle-solver sim crazy               # watch it solve a given answer
+wordle-solver bench --strategy all    # compare the five strategies
+wordle-solver bench --strategy entropy --hard
+wordle-solver bench                   # results of the human-like model over every answer
+wordle-solver                         # solve today's published puzzle (see Answer data)
+wordle-solver auto --date 2026-11-12  # solve another day's puzzle
+wordle-solver auto --id 0             # solve by puzzle number (0 is 2021-06-19)
+wordle-solver auto --from 1900 --to 1910
+wordle-solver stats                   # statistics for the games you have saved
+wordle-solver sync                    # cache every past answer (a few minutes)
+wordle-solver clean                   # delete the saved profile, games and answers
+wordle-solver settings                # saved defaults and where each value comes from
 ```
 
-Options for the solving commands:
+Each command accepts only its own options, with one or two dashes, before or
+after its arguments. The playing commands (`auto`, `play`, `sim`, `bench`)
+share these:
 
 | Option | Effect |
 | --- | --- |
-| `-hard` | only make guesses Hard Mode allows |
-| `-max N` | plan to finish within N guesses (3–6, default 6); see below for how often it can't |
-| `-target N` | aim to finish on guess N (2–6) |
-| `-sloppy P` | chance of a human slip per guess with guesses to spare (default 0.2, 0 = never) |
-| `-seed N` | make random choices reproducible |
-| `-copy` | copy the share grid to the clipboard |
+| `--hard` | only make guesses Hard Mode allows |
+| `--max N` | plan to finish within N guesses (3–6, default 6); see below for how often it can't |
+| `--target N` | aim to finish on guess N (2–6) |
+| `--sloppy P` | chance of a human slip per guess with guesses to spare (default 0.2, 0 = never) |
+| `--seed N` | make random choices reproducible |
+| `--copy` | copy the share grid to the clipboard |
+
+Save a default with `wordle-solver settings set max 5`; `wordle-solver help
+settings` lists every key.
 
 In `play`, type the suggested word into the game and enter the colours it
 showed as `g`/`y`/`b` (or `2`/`1`/`0`). To play your own word instead, enter
@@ -123,12 +130,14 @@ showed as `g`/`y`/`b` (or `2`/`1`/`0`). To play your own word instead, enter
 Language models can play against the engine and the entropy strategy:
 
 ```sh
+wordle-solver providers                                  # built-in and saved servers
 wordle-solver models ollama
-wordle-solver eval --model ollama/llama3.2 --games 10 --seed 42 --out eval.jsonl
+wordle-solver eval --model ollama/llama3.2 --games 10 --seed 42
+wordle-solver eval --model omlx/clef-flash-4bit          # a decision model, detected automatically
 ```
 
-`settings` shows effective defaults and their sources; `providers` lists
-configured servers. See [evaluating models](docs/eval.md) for configuration,
+Each run writes a transcript to the `evals` folder beside your saved data
+unless you pass `--out`. See [evaluating models](docs/eval.md) for configuration,
 held-out answers, transcripts and rerouting.
 
 ## Answer data
@@ -161,7 +170,7 @@ model with 2022 results people reported: it averages about 4.3 guesses
 against their 4.1, and its results are more tightly bunched. Under
 `-max` below 6 or `-hard` it drops the slips and pacing and plays carefully.
 
-Over every answer, with `wordle-solver bench [option] -seed N` for seeds
+Over every answer, with `wordle-solver bench [option] --seed N` for seeds
 1, 2 and 3 (ranges across the three seeds):
 
 | Option | Mean guesses when solved | Over the limit or lost |

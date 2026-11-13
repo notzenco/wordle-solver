@@ -81,7 +81,7 @@ slip. Near the end the look-ahead planner takes over: with two guesses left
 it maximises the answers it is sure to solve (`bestForTwo`), and with three
 left and more than three candidates it maximises those solved within three
 (`bestForThree`). Over all 2,315 answers it lost no games in
-`wordle-solver bench -seed 1`, `-seed 2` or `-seed 3` (means 4.29, 4.30 and
+`wordle-solver bench --seed 1`, `--seed 2` or `--seed 3` (means 4.29, 4.30 and
 4.32 guesses).
 
 ## Compared with reported results
