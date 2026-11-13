@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -26,17 +29,19 @@ func TestProviders(t *testing.T) {
 		w.Write([]byte(`{"data":[{"id":"a/b"}]}`))
 	}))
 	defer s.Close()
-	if e := providersCommand([]string{"add", "ollama", "--base-url", s.URL}, &c); e != nil {
-		t.Fatal(e)
+	if code := runCLI([]string{"providers", "add", "ollama", "--base-url", s.URL}, io.Discard, io.Discard); code != 0 {
+		t.Fatal("add failed")
 	}
+	c, _ = loadConfig()
 	p := allProviders(c)["ollama"]
 	m, e := fetchModels(p)
 	if e != nil || len(m) != 1 || m[0] != "a/b" {
 		t.Fatal(m, e)
 	}
-	if e := providersCommand([]string{"remove", "ollama"}, &c); e != nil {
-		t.Fatal(e)
+	if code := runCLI([]string{"providers", "remove", "ollama"}, io.Discard, io.Discard); code != 0 {
+		t.Fatal("remove failed")
 	}
+	c, _ = loadConfig()
 	if allProviders(c)["ollama"].BaseURL != builtins["ollama"].BaseURL {
 		t.Fatal("override remained")
 	}
@@ -52,8 +57,12 @@ func TestModelKeyRedaction(t *testing.T) {
 	if e != nil || len(m) != 1 || m[0] != "[redacted]" {
 		t.Fatal("key redaction failed")
 	}
-	c := configFile{Providers: map[string]provider{"test": {s.URL, "PRIVATE_API_KEY", ""}}}
-	if e := providersCommand([]string{"check", "test"}, &c); e != nil {
+	t.Setenv("WORDLE_SOLVER_HOME", t.TempDir())
+	if e := saveConfig(configFile{Providers: map[string]provider{"test": {s.URL, "PRIVATE_API_KEY", ""}}}); e != nil {
 		t.Fatal(e)
+	}
+	var out bytes.Buffer
+	if code := runCLI([]string{"providers", "check", "test"}, &out, io.Discard); code != 0 || strings.Contains(out.String(), "secret-value") {
+		t.Fatalf("check failed or leaked the key: %q", out.String())
 	}
 }

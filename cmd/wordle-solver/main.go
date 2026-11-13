@@ -1,8 +1,8 @@
-// Command wordle-solver plays Wordle in a way that reads like a person's game.
+// Command wordle-solver solves the five-letter word game, compares guess
+// strategies and scores language and decision models on the same games.
 package main
 
 import (
-	"flag"
 	"fmt"
 	"math/rand/v2"
 	"os"
@@ -15,43 +15,6 @@ import (
 	"github.com/notzenco/wordle-solver/internal/wordle"
 )
 
-const usage = `usage:
-  wordle-solver [auto] [-date YYYY-MM-DD | -id N] [-fresh] [-dry]   solve a day's published puzzle by itself
-  wordle-solver auto -from N [-to M] [-fresh]                       solve a range of puzzles
-  wordle-solver clean [-y]                                          delete your profile, history and cached answers
-  wordle-solver update [-force]                                     install the latest release
-  wordle-solver eval --model PROVIDER/MODEL [--games N]             evaluate a model
-  wordle-solver providers [add|remove|check]                        configure API providers
-  wordle-solver models PROVIDER                                    list server models
-  wordle-solver settings [set KEY VALUE | reset KEY]                configure defaults
-  wordle-solver version                                             print the version
-  wordle-solver stats                                               statistics for your saved games
-  wordle-solver sync                                                download every past answer
-  wordle-solver play                                                solve a puzzle with you
-  wordle-solver sim WORD                                            watch it solve a known answer
-  wordle-solver bench [-n N]                                        results over the answer list
-  wordle-solver bench -strategy NAME|all [-hard]                    compare guess strategies
-
-options for every command:
-  -max N      plan to solve within N guesses (3-6, default 6)
-  -target N   aim to finish on turn N (2-6)
-  -hard       only make guesses Hard Mode allows
-  -sloppy P   chance of a human slip per guess with turns to spare (default 0.2)
-  -copy       copy the share grid to the clipboard
-  -seed N     make choices reproducible
-  -kind KIND  chat or systemone (default provider kind)
-  -options MODE free or candidates (systemone requires candidates)
-  -max-options N candidate cap (default 64); -distractors N inconsistent choices
-  -model ID   eval provider/model (or bare model with -base-url)
-  -games N    eval games (default 10); -set answers|heldout
-  -temperature N  eval sampling temperature (default 0)
-  -max-tokens N   eval response limit (default 64)
-  -timeout D  eval request timeout (default 1m); -out PATH transcript
-  -base-url URL   one-off API endpoint; -api-key-env NAME key variable
-  -strategy NAME  bench strategy (default human model)
-  -home DIR   keep player data in DIR (default $WORDLE_SOLVER_HOME or the user config folder)
-`
-
 type options struct {
 	target, max int
 	sloppy      float64
@@ -59,186 +22,190 @@ type options struct {
 }
 
 func main() {
-	args := os.Args[1:]
-	cmd := "auto"
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		cmd, args = args[0], args[1:]
-	}
-	fs := flag.NewFlagSet(cmd, flag.ExitOnError)
-	fs.Usage = func() {
-		fmt.Fprint(os.Stderr, usage)
-		fmt.Fprintln(os.Stderr, "\nstrategies for bench -strategy (all runs each in normal and Hard Mode):")
-		for _, st := range wordle.Strategies {
-			fmt.Fprintf(os.Stderr, "  %-10s %s\n", st.Name, st.Description)
-		}
-	}
-	var opts options
-	fs.IntVar(&opts.target, "target", 0, "")
-	fs.IntVar(&opts.max, "max", 6, "")
-	fs.Float64Var(&opts.sloppy, "sloppy", 0.2, "")
-	fs.BoolVar(&opts.hard, "hard", false, "")
-	fs.BoolVar(&opts.copy, "copy", false, "")
-	seed := fs.Uint64("seed", 0, "")
-	n := fs.Int("n", 0, "")
-	strategy := fs.String("strategy", "", "")
-	date := fs.String("date", "", "")
-	id := fs.Int("id", -1, "")
-	from := fs.Int("from", -1, "")
-	to := fs.Int("to", -1, "")
-	fresh := fs.Bool("fresh", false, "")
-	dry := fs.Bool("dry", false, "")
-	yes := fs.Bool("y", false, "")
-	force := fs.Bool("force", false, "")
-	home := fs.String("home", "", "")
-	showVersion := fs.Bool("version", false, "")
-	fs.String("kind", "", "")
-	fs.String("options", "free", "")
-	fs.Int("max-options", 64, "")
-	fs.Int("distractors", 0, "")
-	fs.String("model", "", "")
-	fs.Int("games", 10, "")
-	fs.String("set", "answers", "")
-	fs.Float64("temperature", 0, "")
-	fs.Int("max-tokens", 64, "")
-	fs.Duration("timeout", 60*time.Second, "")
-	fs.String("out", "eval.jsonl", "")
-	fs.String("base-url", "", "")
-	fs.String("api-key-env", "", "")
-	fs.Parse(args)
-
 	if runtime.GOOS == "windows" {
 		selfupdate.RemoveOld(executable())
 	}
-	if *showVersion {
-		cmd = "version"
-	}
-	if *home != "" {
-		os.Setenv("WORDLE_SOLVER_HOME", *home)
-	}
+	os.Exit(runCLI(os.Args[1:], os.Stdout, os.Stderr))
+}
 
-	config, err := loadConfig()
-	if err != nil {
-		fail(err.Error())
+// solver reads and checks the options shared by the commands that play.
+func (c *cmdCtx) solver() (options, *rand.Rand, error) {
+	o := options{target: c.int("target"), max: c.int("max"), sloppy: c.float("sloppy"), hard: c.bool("hard"), copy: c.bool("copy")}
+	switch {
+	case o.target != 0 && (o.target < 2 || o.target > 6):
+		return o, nil, usageError("--target must be between 2 and 6")
+	case o.max < 3 || o.max > 6:
+		return o, nil, usageError("--max must be between 3 and 6")
+	case o.sloppy < 0 || o.sloppy > 1:
+		return o, nil, usageError("--sloppy must be between 0 and 1")
 	}
-	sources, err := applySettings(fs, config)
-	if err != nil {
-		fail(err.Error())
-	}
-	if cmd == "settings" {
-		if err := settingsCommand(fs.Args(), fs, config, sources); err != nil {
-			fail(err.Error())
-		}
-		return
-	}
-
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
-	if *seed != 0 {
-		rng = rand.New(rand.NewPCG(*seed, *seed))
+	if seed := c.uint("seed"); seed != 0 {
+		rng = rand.New(rand.NewPCG(seed, seed))
 	}
-	if opts.target != 0 && (opts.target < 2 || opts.target > 6) {
-		fail("-target must be between 2 and 6")
-	}
-	if opts.max < 3 || opts.max > 6 {
-		fail("-max must be between 3 and 6")
-	}
-	if opts.sloppy < 0 || opts.sloppy > 1 {
-		fail("-sloppy must be between 0 and 1")
-	}
+	return o, rng, nil
+}
 
-	switch cmd {
-	case "eval":
-		if err := evalCommand(fs, config); err != nil {
-			fail(err.Error())
-		}
-	case "providers":
-		if err := providersCommand(fs.Args(), &config); err != nil {
-			fail(err.Error())
-		}
-	case "models":
-		if fs.NArg() != 1 {
-			fail("models needs a provider")
-		}
-		p, e := findProvider(config, fs.Arg(0))
-		if e != nil {
-			fail(e.Error())
-		}
-		models, e := fetchModels(p)
-		if e != nil {
-			fail(e.Error())
-		}
-		for _, m := range models {
-			fmt.Println(m)
-		}
-	case "auto":
-		if *date != "" && *id >= 0 {
-			fail("use -date or -id, not both")
-		}
-		if *from >= 0 || *to >= 0 {
-			if *date != "" || *id >= 0 || *dry {
-				fail("-from/-to can't be combined with -date, -id or -dry")
-			}
-			last := *to
-			if last < 0 {
-				last = wordle.NumberForDate(time.Now())
-			}
-			if *from < 0 || *from > last {
-				fail("-from must be set and not after -to")
-			}
-			var numbers []int
-			for n := *from; n <= last; n++ {
-				numbers = append(numbers, n)
-			}
-			autoRange(rng, opts, loadStore(rng), numbers, *fresh)
-			return
-		}
-		day := time.Now()
-		if *id >= 0 {
-			day = wordle.DateForNumber(*id)
-		}
-		if *date != "" {
-			d, err := time.ParseInLocation(time.DateOnly, *date, time.Local)
-			if err != nil {
-				fail("-date must look like 2026-11-13")
-			}
-			day = d
-		}
-		var store *player.Store
-		if !*dry {
-			store = loadStore(rng)
-		}
-		auto(rng, opts, store, day, *fresh)
-	case "clean":
-		clean(*yes)
-	case "update":
-		update(*force)
-	case "version":
-		fmt.Println("wordle-solver", versionString())
-	case "stats":
-		printStats(loadStore(rng))
-	case "sync":
-		syncAnswers(loadStore(rng))
-	case "play":
-		var store *player.Store
-		if !*dry {
-			store = loadStore(rng)
-		}
-		play(newSolver(rng, opts, store), opts)
-	case "sim":
-		if fs.NArg() != 1 || len(fs.Arg(0)) != 5 {
-			fail("sim needs a five-letter answer")
-		}
-		turns := newSolver(rng, opts, nil).Solve(strings.ToLower(fs.Arg(0)))
-		printGame("", turns, opts.copy)
-	case "bench":
-		if *strategy != "" {
-			benchStrategies(*strategy, opts.hard)
-			return
-		}
-		bench(rng, opts, *n)
-	default:
-		fs.Usage()
-		os.Exit(2)
+func (c *cmdCtx) noArgs() error {
+	if len(c.args) > 0 {
+		return usageError(fmt.Sprintf("%s takes no arguments (got %q)", c.cmd.name, strings.Join(c.args, " ")))
 	}
+	return nil
+}
+
+func runAuto(c *cmdCtx) error {
+	if err := c.noArgs(); err != nil {
+		return err
+	}
+	opts, rng, err := c.solver()
+	if err != nil {
+		return err
+	}
+	date, id, from, to := c.get("date"), c.int("id"), c.int("from"), c.int("to")
+	if date != "" && id >= 0 {
+		return usageError("use --date or --id, not both")
+	}
+	if from >= 0 || to >= 0 {
+		if date != "" || id >= 0 || c.bool("dry") {
+			return usageError("--from and --to can't be combined with --date, --id or --dry")
+		}
+		last := to
+		if last < 0 {
+			last = wordle.NumberForDate(time.Now())
+		}
+		if from < 0 || from > last {
+			return usageError("--from must be set and not after --to")
+		}
+		var numbers []int
+		for n := from; n <= last; n++ {
+			numbers = append(numbers, n)
+		}
+		autoRange(rng, opts, loadStore(rng), numbers, c.bool("fresh"))
+		return nil
+	}
+	day := time.Now()
+	if id >= 0 {
+		day = wordle.DateForNumber(id)
+	}
+	if date != "" {
+		d, err := time.ParseInLocation(time.DateOnly, date, time.Local)
+		if err != nil {
+			return usageError("--date must look like 2026-11-13")
+		}
+		day = d
+	}
+	var store *player.Store
+	if !c.bool("dry") {
+		store = loadStore(rng)
+	}
+	auto(rng, opts, store, day, c.bool("fresh"))
+	return nil
+}
+
+func runPlay(c *cmdCtx) error {
+	if err := c.noArgs(); err != nil {
+		return err
+	}
+	opts, rng, err := c.solver()
+	if err != nil {
+		return err
+	}
+	var store *player.Store
+	if !c.bool("dry") {
+		store = loadStore(rng)
+	}
+	play(newSolver(rng, opts, store), opts)
+	return nil
+}
+
+func runSim(c *cmdCtx) error {
+	if len(c.args) != 1 || len(c.args[0]) != 5 {
+		return usageError("sim needs one five-letter answer, such as 'wordle-solver sim crazy'")
+	}
+	opts, rng, err := c.solver()
+	if err != nil {
+		return err
+	}
+	turns := newSolver(rng, opts, nil).Solve(strings.ToLower(c.args[0]))
+	printGame("", turns, opts.copy)
+	return nil
+}
+
+func runBench(c *cmdCtx) error {
+	if err := c.noArgs(); err != nil {
+		return err
+	}
+	opts, rng, err := c.solver()
+	if err != nil {
+		return err
+	}
+	if name := c.get("strategy"); name != "" {
+		if _, ok := wordle.StrategyByName(name); !ok && name != "all" {
+			return usageError(fmt.Sprintf("unknown strategy %q; run 'wordle-solver help bench' for the list", name))
+		}
+		benchStrategies(name, opts.hard)
+		return nil
+	}
+	bench(rng, opts, c.int("n"))
+	return nil
+}
+
+func runStats(c *cmdCtx) error {
+	if err := c.noArgs(); err != nil {
+		return err
+	}
+	printStats(loadStore(rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))))
+	return nil
+}
+
+func runSync(c *cmdCtx) error {
+	if err := c.noArgs(); err != nil {
+		return err
+	}
+	syncAnswers(loadStore(rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))))
+	return nil
+}
+
+func runClean(c *cmdCtx) error {
+	if err := c.noArgs(); err != nil {
+		return err
+	}
+	clean(c.bool("y"))
+	return nil
+}
+
+func runUpdate(c *cmdCtx) error {
+	if err := c.noArgs(); err != nil {
+		return err
+	}
+	update(c.bool("force"))
+	return nil
+}
+
+func runVersion(c *cmdCtx) error {
+	if err := c.noArgs(); err != nil {
+		return err
+	}
+	fmt.Fprintln(stdout, "wordle-solver", versionString())
+	return nil
+}
+
+func runModels(c *cmdCtx) error {
+	if len(c.args) != 1 {
+		return usageError("models needs one provider, such as 'wordle-solver models ollama'")
+	}
+	p, err := findProvider(c.config, c.args[0])
+	if err != nil {
+		return err
+	}
+	models, err := fetchModels(p)
+	if err != nil {
+		return err
+	}
+	for _, m := range models {
+		fmt.Fprintln(stdout, m)
+	}
+	return nil
 }
 
 func loadStore(rng *rand.Rand) *player.Store {
@@ -253,7 +220,8 @@ func loadStore(rng *rand.Rand) *player.Store {
 	return store
 }
 
+// fail ends the program from deep inside a command that cannot recover.
 func fail(msg string) {
-	fmt.Fprintln(os.Stderr, msg)
+	fmt.Fprintln(stderr, msg)
 	os.Exit(1)
 }

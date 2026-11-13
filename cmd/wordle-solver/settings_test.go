@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/notzenco/wordle-solver/internal/player"
+	"io"
 	"testing"
 )
 
@@ -23,12 +24,12 @@ func TestSettings(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	v := fs.Int("max", 6, "")
 	t.Setenv("WORDLE_SOLVER_MAX", "5")
-	src, err := applySettings(fs, c)
+	src, err := applySettings(fs, []*option{optionByID("max")}, c)
 	if err != nil || *v != 5 || src["max"] != "env" {
 		t.Fatal(src, err, *v)
 	}
 	fs.Parse([]string{"--max=3"})
-	src, err = applySettings(fs, c)
+	src, err = applySettings(fs, []*option{optionByID("max")}, c)
 	if err != nil || *v != 3 || src["max"] != "flag" {
 		t.Fatal(src, err)
 	}
@@ -38,8 +39,8 @@ func TestSettings(t *testing.T) {
 	if err := validateSetting("max", "99"); err == nil {
 		t.Fatal("bad max")
 	}
-	if err := settingsCommand([]string{"reset", "max"}, fs, c, src); err != nil {
-		t.Fatal(err)
+	if code := runCLI([]string{"settings", "reset", "max"}, io.Discard, io.Discard); code != 0 {
+		t.Fatal("reset failed")
 	}
 	c, _ = loadConfig()
 	if _, ok := c.Settings["max"]; ok {
@@ -52,18 +53,18 @@ func TestSavedDefaultsAndSet(t *testing.T) {
 	c, _ := loadConfig()
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	v := fs.Int("max", 6, "")
-	src, e := applySettings(fs, c)
+	src, e := applySettings(fs, []*option{optionByID("max")}, c)
 	if e != nil || *v != 6 || src["max"] != "default" {
 		t.Fatal(src, e)
 	}
-	if e = settingsCommand([]string{"set", "max", "4"}, fs, c, src); e != nil {
-		t.Fatal(e)
+	if code := runCLI([]string{"settings", "set", "max", "4"}, io.Discard, io.Discard); code != 0 {
+		t.Fatal("set failed")
 	}
 	c, e = loadConfig()
 	if e != nil {
 		t.Fatal(e)
 	}
-	src, e = applySettings(fs, c)
+	src, e = applySettings(fs, []*option{optionByID("max")}, c)
 	if e != nil || *v != 4 || src["max"] != "config" {
 		t.Fatal(src, e, *v)
 	}

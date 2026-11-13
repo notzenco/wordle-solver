@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
+
 	"fmt"
 	modeleval "github.com/notzenco/wordle-solver/internal/eval"
 	"io"
@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"text/tabwriter"
 	"time"
 )
 
@@ -22,13 +23,13 @@ type provider struct {
 }
 
 var builtins = map[string]provider{
-	"ollama":     {"http://localhost:11434/v1", "", "chat"},
-	"lmstudio":   {"http://localhost:1234/v1", "", "chat"},
-	"llamacpp":   {"http://localhost:8080/v1", "", "chat"},
-	"omlx":       {"http://127.0.0.1:8000/v1", "", "chat"},
-	"omniroute":  {"http://127.0.0.1:20128/v1", "OMNIROUTE_API_KEY", "chat"},
-	"openai":     {"https://api.openai.com/v1", "OPENAI_API_KEY", "chat"},
-	"openrouter": {"https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "chat"},
+	"ollama":     {"http://localhost:11434/v1", "", ""},
+	"lmstudio":   {"http://localhost:1234/v1", "", ""},
+	"llamacpp":   {"http://localhost:8080/v1", "", ""},
+	"omlx":       {"http://127.0.0.1:8000/v1", "", ""},
+	"omniroute":  {"http://127.0.0.1:20128/v1", "OMNIROUTE_API_KEY", ""},
+	"openai":     {"https://api.openai.com/v1", "OPENAI_API_KEY", ""},
+	"openrouter": {"https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", ""},
 }
 var providerName = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 var envName = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
@@ -62,6 +63,14 @@ func keyStatus(p provider) string {
 	}
 	return "unset"
 }
+
+// keyColumn describes a provider's key without revealing it.
+func keyColumn(p provider) string {
+	if p.KeyEnv == "" {
+		return "none"
+	}
+	return fmt.Sprintf("%s (%s)", p.KeyEnv, keyStatus(p))
+}
 func providerNames(c configFile) []string {
 	n := []string{}
 	for k := range allProviders(c) {
@@ -70,69 +79,93 @@ func providerNames(c configFile) []string {
 	sort.Strings(n)
 	return n
 }
-func providersCommand(args []string, c *configFile) error {
-	if len(args) == 0 {
-		for _, n := range providerNames(*c) {
-			p := allProviders(*c)[n]
-			src := "builtin"
-			if _, ok := c.Providers[n]; ok {
-				src = "config"
+func providersCommand(c *cmdCtx) error {
+	sub, args := "list", c.args
+	if len(args) > 0 {
+		sub, args = args[0], args[1:]
+	}
+	if sub != "add" {
+		for _, id := range []string{"provider.base-url", "provider.api-key-env", "provider.kind"} {
+			if c.set(id) {
+				return usageError(fmt.Sprintf("--%s only applies to 'providers add'", optionByID(id).flag))
 			}
-			fmt.Printf("%s\t%s\t%s (%s)\t%s\t%s\n", n, p.BaseURL, p.KeyEnv, keyStatus(p), src, providerKind(p))
 		}
-		return nil
 	}
-	if len(args) == 2 && args[0] == "remove" {
-		if _, ok := c.Providers[args[1]]; !ok {
-			return fmt.Errorf("no saved provider %q", args[1])
+	switch {
+	case sub == "list" && len(args) == 0:
+		tw := tabwriter.NewWriter(stdout, 0, 0, 3, ' ', 0)
+		fmt.Fprintln(tw, "NAME\tBASE URL\tKEY\tKIND\tSOURCE")
+		for _, n := range providerNames(c.config) {
+			p := allProviders(c.config)[n]
+			src := "built-in"
+			if _, ok := c.config.Providers[n]; ok {
+				src = "saved"
+				if _, ok := builtins[n]; ok {
+					src = "saved (overrides built-in)"
+				}
+			}
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", n, p.BaseURL, keyColumn(p), kindColumn(p), src)
 		}
-		delete(c.Providers, args[1])
-		return saveConfig(*c)
-	}
-	if len(args) == 2 && args[0] == "check" {
-		p, e := findProvider(*c, args[1])
-		if e != nil {
-			return e
+		return tw.Flush()
+	case sub == "remove" && len(args) == 1:
+		if _, ok := c.config.Providers[args[0]]; !ok {
+			return fmt.Errorf("no saved provider %q", args[0])
 		}
-		m, e := fetchModels(p)
-		if e != nil {
-			fmt.Printf("reachable: no; key: %s\n", keyStatus(p))
-			return e
-		}
-		fmt.Printf("reachable: yes; key: %s; models: %d\n", keyStatus(p), len(m))
-		return nil
-	}
-	if len(args) >= 2 && args[0] == "add" {
-		n := args[1]
-		if !providerName.MatchString(n) {
-			return fmt.Errorf("invalid provider name")
-		}
-		fs := flag.NewFlagSet("providers add", flag.ContinueOnError)
-		base := fs.String("base-url", "", "")
-		key := fs.String("api-key-env", "", "")
-		kind := fs.String("kind", "chat", "")
-		if e := fs.Parse(args[2:]); e != nil {
-			return e
-		}
-		if fs.NArg() != 0 {
-			return fmt.Errorf("unexpected provider arguments")
-		}
-		if e := validBase(*base); e != nil {
-			return e
-		}
-		if e := validKeyEnv(*key); e != nil {
-			return e
-		}
-		if err := validKind(*kind); err != nil {
+		delete(c.config.Providers, args[0])
+		if err := saveConfig(c.config); err != nil {
 			return err
 		}
-		if c.Providers == nil {
-			c.Providers = map[string]provider{}
+		if _, ok := builtins[args[0]]; ok {
+			fmt.Fprintf(stdout, "Removed the saved %s; the built-in address applies again.\n", args[0])
+		} else {
+			fmt.Fprintf(stdout, "Removed %s.\n", args[0])
 		}
-		c.Providers[n] = provider{strings.TrimRight(*base, "/"), *key, *kind}
-		return saveConfig(*c)
+		return nil
+	case sub == "check" && len(args) == 1:
+		p, err := findProvider(c.config, args[0])
+		if err != nil {
+			return err
+		}
+		key := "no key needed"
+		if p.KeyEnv != "" {
+			key = fmt.Sprintf("key %s", keyColumn(p))
+		}
+		m, err := fetchModels(p)
+		if err != nil {
+			fmt.Fprintf(stdout, "%s: not reachable at %s; %s\n", args[0], p.BaseURL, key)
+			return err
+		}
+		fmt.Fprintf(stdout, "%s: reachable at %s; %d models; %s\n", args[0], p.BaseURL, len(m), key)
+		return nil
+	case sub == "add" && len(args) == 1:
+		n := args[0]
+		if !providerName.MatchString(n) {
+			return usageError("provider names use lowercase letters, digits and single hyphens")
+		}
+		base, key, kind := c.get("provider.base-url"), c.get("provider.api-key-env"), c.get("provider.kind")
+		if base == "" {
+			return usageError("providers add needs --base-url URL")
+		}
+		if err := validBase(base); err != nil {
+			return err
+		}
+		if err := validKeyEnv(key); err != nil {
+			return err
+		}
+		if err := validKind(kind); err != nil {
+			return err
+		}
+		if c.config.Providers == nil {
+			c.config.Providers = map[string]provider{}
+		}
+		c.config.Providers[n] = provider{strings.TrimRight(base, "/"), key, kind}
+		if err := saveConfig(c.config); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "Saved %s at %s.\n", n, strings.TrimRight(base, "/"))
+		return nil
 	}
-	return fmt.Errorf("usage: providers [add NAME --base-url URL [--api-key-env NAME] [--kind chat|systemone] | remove NAME | check NAME]")
+	return usageError("usage: wordle-solver providers [list | add NAME --base-url URL [--api-key-env NAME] [--kind KIND] | remove NAME | check NAME]")
 }
 func findProvider(c configFile, n string) (provider, error) {
 	p, ok := allProviders(c)[n]
@@ -209,6 +242,14 @@ func validKind(k string) error {
 		return fmt.Errorf("kind must be chat or systemone")
 	}
 	return nil
+}
+
+// kindColumn shows "auto" for providers whose kind is detected per model.
+func kindColumn(p provider) string {
+	if p.Kind == "" {
+		return "auto"
+	}
+	return p.Kind
 }
 func providerKind(p provider) string {
 	if p.Kind == "" {
