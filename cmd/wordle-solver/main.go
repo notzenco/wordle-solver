@@ -110,11 +110,19 @@ func runPlay(c *cmdCtx) error {
 	if err != nil {
 		return err
 	}
+	var m *modelSuggester
+	if spec := c.get("play.model"); spec != "" {
+		p, _, model, err := resolveModel(c.config, spec, "", "")
+		if err != nil {
+			return err
+		}
+		m = newModelSuggester(p, model, rng)
+	}
 	var store *player.Store
 	if !c.bool("dry") {
 		store = loadStore(rng)
 	}
-	play(newSolver(rng, opts, store), opts)
+	play(newSolver(rng, opts, store), opts, m)
 	return nil
 }
 

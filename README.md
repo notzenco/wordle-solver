@@ -125,6 +125,14 @@ In `play`, type the suggested word into the game and enter the colours it
 showed as `g`/`y`/`b` (or `2`/`1`/`0`). To play your own word instead, enter
 `word pattern`, for example `crane bygbb`.
 
+`play --model PROVIDER/MODEL` takes each suggestion from a model instead,
+using the same providers as [model evaluation](docs/eval.md). A decision
+model such as Clef chooses from up to 64 words that fit the clues so far, so
+early guesses come from a random sample of the vocabulary. The top choices
+and their probabilities are shown. If a reply can't be used, the solver's
+own suggestion is shown and labelled. Save a default with
+`wordle-solver settings set play.model omlx/clef-flash-4bit`.
+
 ## Evaluating models
 
 Language models can play against the engine and the entropy strategy:

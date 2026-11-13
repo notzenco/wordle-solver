@@ -48,8 +48,8 @@ func TestCommandHelpShowsOnlyItsOptions(t *testing.T) {
 }
 
 func TestOptionsAreScopedToTheirCommand(t *testing.T) {
-	code, _, errOut := run(t, "play", "--model", "ollama/x")
-	if code != 2 || !strings.Contains(errOut, "-model") || !strings.Contains(errOut, "wordle-solver help play") {
+	code, _, errOut := run(t, "play", "--games", "3")
+	if code != 2 || !strings.Contains(errOut, "-games") || !strings.Contains(errOut, "wordle-solver help play") {
 		t.Fatalf("code %d, stderr %q", code, errOut)
 	}
 }

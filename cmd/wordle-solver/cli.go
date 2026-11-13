@@ -18,6 +18,7 @@ import (
 var (
 	stdout io.Writer = os.Stdout
 	stderr io.Writer = os.Stderr
+	stdin  io.Reader // nil means os.Stdin
 )
 
 // An option is one command-line flag. Options with setting set can also come
@@ -53,6 +54,8 @@ var allOptions = []option{
 
 	{"y", "y", "", "false", "bool", "delete without asking", false},
 	{"force", "force", "", "false", "bool", "reinstall even when already up to date", false},
+
+	{"play.model", "model", "PROVIDER/MODEL", "", "string", "take suggestions from this model instead of the built-in player; decision models such as Clef choose from the words that fit", true},
 
 	{"eval.model", "model", "PROVIDER/MODEL", "", "string", "model to evaluate; the provider is the text before the first slash", true},
 	{"eval.games", "games", "N", "10", "uint", "number of games", true},
@@ -106,9 +109,11 @@ var commands = []*command{
 		run:      runAuto},
 	{name: "play", group: "Play", summary: "Suggest guesses while you play",
 		help: "Suggests a guess each turn. Type the colours the game showed as g/y/b (or 2/1/0), or\n" +
-			"'word pattern' to record a different word, for example 'crane bygbb'.",
-		options:  append([]string{"dry"}, solverOptions...),
-		examples: []string{"wordle-solver play", "wordle-solver play --hard"},
+			"'word pattern' to record a different word, for example 'crane bygbb'. With --model, a\n" +
+			"model suggests each guess instead; when its reply is unusable, the built-in suggestion\n" +
+			"is shown and labelled.",
+		options:  append([]string{"play.model", "dry"}, solverOptions...),
+		examples: []string{"wordle-solver play", "wordle-solver play --hard", "wordle-solver play --model omlx/clef-flash-4bit"},
 		run:      runPlay},
 	{name: "sim", group: "Play", args: "WORD", summary: "Watch the solver play a known answer",
 		options:  solverOptions,
