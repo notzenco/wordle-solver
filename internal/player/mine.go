@@ -2,7 +2,6 @@ package player
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 )
 
@@ -25,10 +24,22 @@ func LoadMine(dir string) (map[int]Game, error) {
 	return games, nil
 }
 
-// SaveMine writes the games played by hand to dir.
+// SaveMine adds games to the hand-played games saved in dir, under the
+// same lock as Store.Save.
 func SaveMine(dir string, games map[int]Game) error {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	unlock, err := lock(dir)
+	if err != nil {
 		return err
+	}
+	defer unlock()
+	saved := map[int]Game{}
+	if err := readJSON(filepath.Join(dir, mineFile), &saved); err != nil {
+		return err
+	}
+	for n, g := range saved {
+		if _, ok := games[n]; !ok {
+			games[n] = g
+		}
 	}
 	return writeJSON(filepath.Join(dir, mineFile), games)
 }
