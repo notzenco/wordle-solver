@@ -172,13 +172,14 @@ func evalCommand(fs *flag.FlagSet, c configFile) error {
 	if choices > 0 {
 		metrics["inconsistent_rate"] = float64(inconsistent) / float64(choices)
 	}
-	if kind == "systemone" {
-		fmt.Printf("decision metrics: %+v\n", metrics)
-	}
 	if e = enc.Encode(map[string]any{"metrics": metrics, "type": "summary", "games": len(answers), "eligible": eligible, "solved": solved, "rerouted": rerouted}); e != nil {
 		return e
 	}
-	fmt.Printf("model\tgames\teligible\tsolved\trerouted\n%s\t%d\t%d\t%d\t%d\n", model, len(answers), eligible, solved, rerouted)
-	fmt.Printf("eligible attempts\tbeyond entropy\tinvalid\tmalformed\thard violations\ttokens\ttime\n%d\t%d\t%d\t%d\t%d\t%d\t%s\n", guesses, beyond, invalid, malformed, violations, tokens, duration)
+	writeEvalSummary(os.Stdout, evalSummary{
+		Model: model, Kind: kind, Options: value("options"), Out: value("out"),
+		Games: len(answers), Eligible: eligible, Solved: solved, Rerouted: rerouted,
+		Guesses: guesses, Beyond: beyond, Invalid: invalid, Malformed: malformed, Violations: violations, Tokens: tokens, Duration: duration,
+		MetricCount: metricCount, Choices: choices, Inconsistent: inconsistent, Probability: probability, Loss: loss, Uniform: uniform, Frequency: frequency, Distractors: distractors,
+	})
 	return f.Sync()
 }
