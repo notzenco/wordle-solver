@@ -18,7 +18,8 @@ import (
 )
 
 type configFile struct {
-	Settings map[string]string `json:"settings,omitempty"`
+	Providers map[string]provider `json:"providers,omitempty"`
+	Settings  map[string]string   `json:"settings,omitempty"`
 }
 
 var settingFlags = map[string]string{
@@ -107,6 +108,12 @@ func validateSetting(k, v string) error {
 				return bad()
 			}
 		}
+	case "eval.base-url":
+		if v != "" {
+			return validBase(v)
+		}
+	case "eval.api-key-env":
+		return validKeyEnv(v)
 	case "eval.set":
 		if v != "answers" && v != "heldout" {
 			return bad()

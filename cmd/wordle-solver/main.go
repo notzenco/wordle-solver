@@ -20,6 +20,8 @@ const usage = `usage:
   wordle-solver auto -from N [-to M] [-fresh]                       solve a range of puzzles
   wordle-solver clean [-y]                                          delete your profile, history and cached answers
   wordle-solver update [-force]                                     install the latest release
+  wordle-solver providers [add|remove|check]                        configure API providers
+  wordle-solver models PROVIDER                                    list server models
   wordle-solver settings [set KEY VALUE | reset KEY]                configure defaults
   wordle-solver version                                             print the version
   wordle-solver stats                                               statistics for your saved games
@@ -129,6 +131,25 @@ func main() {
 	}
 
 	switch cmd {
+	case "providers":
+		if err := providersCommand(fs.Args(), &config); err != nil {
+			fail(err.Error())
+		}
+	case "models":
+		if fs.NArg() != 1 {
+			fail("models needs a provider")
+		}
+		p, e := findProvider(config, fs.Arg(0))
+		if e != nil {
+			fail(e.Error())
+		}
+		models, e := fetchModels(p)
+		if e != nil {
+			fail(e.Error())
+		}
+		for _, m := range models {
+			fmt.Println(m)
+		}
 	case "auto":
 		if *date != "" && *id >= 0 {
 			fail("use -date or -id, not both")
