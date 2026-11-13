@@ -207,13 +207,25 @@ func settingsCommand(c *cmdCtx) error {
 	if c.bool("all") && sub != "reset" {
 		return usageError("--all only applies to reset")
 	}
-	opts := settingOptions()
+	// Several settings share an option name across commands (eval.model and
+	// play.model are both --model), so this listing names flags by key.
+	opts := []*option{}
+	for _, o := range settingOptions() {
+		byKey := *o
+		byKey.flag = o.id
+		opts = append(opts, &byKey)
+	}
 	fs := newFlagSet("settings", opts)
 	src, err := applySettings(fs, opts, c.config)
 	if err != nil {
 		return err
 	}
-	value := func(k string) string { return fs.Lookup(optionByID(k).flag).Value.String() }
+	value := func(k string) string {
+		if f := fs.Lookup(k); f != nil {
+			return f.Value.String()
+		}
+		return ""
+	}
 	switch {
 	case sub == "list" && len(args) == 0:
 		tw := tabwriter.NewWriter(stdout, 0, 0, 3, ' ', 0)

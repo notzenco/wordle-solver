@@ -75,24 +75,12 @@ func evalCommand(c *cmdCtx) error {
 	r := evalRun{set: c.get("eval.set"), games: c.int("eval.games"), seed: c.uint("eval.seed"), hard: c.bool("hard"),
 		maxOptions: c.int("eval.max-options"), distractors: c.int("eval.distractors"), temperature: c.float("eval.temperature"),
 		maxTokens: c.int("eval.max-tokens"), timeout: c.dur("eval.timeout"), out: c.get("eval.out")}
-	name, model, err := modeleval.SplitModel(spec)
-	if base := c.get("eval.base-url"); base != "" {
-		r.provider = provider{BaseURL: base, KeyEnv: c.get("eval.api-key-env")}
-		if err != nil {
-			name, model = "one-off", spec
-		}
-	} else {
-		if err != nil {
-			return usageError("--model must be PROVIDER/MODEL, such as ollama/llama3.2 (or pass --base-url for a one-off server)")
-		}
-		if r.provider, err = findProvider(c.config, name); err != nil {
-			return err
-		}
-		if k := c.get("eval.api-key-env"); k != "" {
-			r.provider.KeyEnv = k
-		}
+	var err error
+	r.provider, r.name, r.model, err = resolveModel(c.config, spec, c.get("eval.base-url"), c.get("eval.api-key-env"))
+	if err != nil {
+		return err
 	}
-	r.name, r.model = name, model
+	name, model := r.name, r.model
 	r.kind = c.get("eval.kind")
 	r.autoKind = r.kind == "" && r.provider.Kind == ""
 	if r.kind == "" {
@@ -125,6 +113,29 @@ func evalCommand(c *cmdCtx) error {
 		}
 		return err
 	}
+}
+
+// resolveModel finds the provider for PROVIDER/MODEL, or uses baseURL as a
+// one-off server with spec as the bare model id.
+func resolveModel(c configFile, spec, baseURL, keyEnv string) (provider, string, string, error) {
+	name, model, err := modeleval.SplitModel(spec)
+	if baseURL != "" {
+		if err != nil {
+			name, model = "one-off", spec
+		}
+		return provider{BaseURL: baseURL, KeyEnv: keyEnv}, name, model, nil
+	}
+	if err != nil {
+		return provider{}, "", "", usageError("--model must be PROVIDER/MODEL, such as ollama/llama3.2 (or pass --base-url for a one-off server)")
+	}
+	p, err := findProvider(c, name)
+	if err != nil {
+		return p, "", "", err
+	}
+	if keyEnv != "" {
+		p.KeyEnv = keyEnv
+	}
+	return p, name, model, nil
 }
 
 var unsafeFileChars = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
