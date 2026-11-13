@@ -26,6 +26,7 @@ const usage = `usage:
   wordle-solver play                                                solve a puzzle with you
   wordle-solver sim WORD                                            watch it solve a known answer
   wordle-solver bench [-n N]                                        results over the answer list
+  wordle-solver bench -strategy NAME|all [-hard]                    compare guess strategies
 
 options for every command:
   -max N      always solve within N guesses (3-6, default 6)
@@ -50,7 +51,13 @@ func main() {
 		cmd, args = args[0], args[1:]
 	}
 	fs := flag.NewFlagSet(cmd, flag.ExitOnError)
-	fs.Usage = func() { fmt.Fprint(os.Stderr, usage) }
+	fs.Usage = func() {
+		fmt.Fprint(os.Stderr, usage)
+		fmt.Fprintln(os.Stderr, "\nstrategies for bench -strategy (all runs each in normal and Hard Mode):")
+		for _, st := range wordle.Strategies {
+			fmt.Fprintf(os.Stderr, "  %-10s %s\n", st.Name, st.Description)
+		}
+	}
 	var opts options
 	fs.IntVar(&opts.target, "target", 0, "")
 	fs.IntVar(&opts.max, "max", 6, "")
@@ -59,6 +66,7 @@ func main() {
 	fs.BoolVar(&opts.copy, "copy", false, "")
 	seed := fs.Uint64("seed", 0, "")
 	n := fs.Int("n", 0, "")
+	strategy := fs.String("strategy", "", "")
 	date := fs.String("date", "", "")
 	id := fs.Int("id", -1, "")
 	from := fs.Int("from", -1, "")
@@ -157,6 +165,10 @@ func main() {
 		turns := newSolver(rng, opts, nil).Solve(strings.ToLower(fs.Arg(0)))
 		printGame("", turns, opts.copy)
 	case "bench":
+		if *strategy != "" {
+			benchStrategies(*strategy, opts.hard)
+			return
+		}
 		bench(rng, opts, *n)
 	default:
 		fs.Usage()

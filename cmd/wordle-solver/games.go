@@ -199,3 +199,34 @@ func bench(rng *rand.Rand, opts options, n int) {
 	fmt.Printf("mean %.2f guesses, %d lost\n",
 		float64(solvedTurns)/float64(len(answers)-counts[7]), counts[7])
 }
+
+// benchStrategies plays every answer with the named strategy, or with every
+// strategy in both modes for "all", and prints one row per run.
+func benchStrategies(name string, hard bool) {
+	strategies := wordle.Strategies
+	modes := []bool{false, true}
+	if name != "all" {
+		st, ok := wordle.StrategyByName(name)
+		if !ok {
+			fail(fmt.Sprintf("unknown strategy %q; run 'wordle-solver -h' for the list", name))
+		}
+		strategies, modes = []wordle.Strategy{st}, []bool{hard}
+	}
+	fmt.Printf("%-9s %-6s %-6s %5s %6s %6s %6s %6s %6s %6s %7s %8s\n",
+		"strategy", "mode", "opener", "mean", "1", "2", "3", "4", "5", "6", "failed", "runtime")
+	for _, hard := range modes {
+		for _, st := range strategies {
+			r := wordle.Benchmark(st, hard, wordle.Answers)
+			mode := "normal"
+			if hard {
+				mode = "hard"
+			}
+			fmt.Printf("%-9s %-6s %-6s %5.3f", r.Strategy, mode, strings.ToUpper(r.Opener), r.Mean)
+			for turn := 1; turn <= 6; turn++ {
+				fmt.Printf(" %6d", r.Wins[turn])
+			}
+			fmt.Printf(" %7d %7.1fs\n", r.Failed, r.Runtime.Seconds())
+		}
+	}
+	fmt.Printf("\n%d answers per run.\n", len(wordle.Answers))
+}
