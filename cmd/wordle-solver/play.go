@@ -159,17 +159,3 @@ func assist(a advisor, p *puzzle, hard bool) {
 		fmt.Fprintf(stdout, "\nThe answer was %s.\n", strings.ToUpper(p.answer))
 	}
 }
-
-// parseResult reads "pattern" for the suggested word or "word pattern" for
-// a word the player chose themselves.
-func parseResult(line, suggestion string) (guess, pattern string, err error) {
-	fields := strings.Fields(strings.ToLower(line))
-	guess = suggestion
-	if len(fields) > 1 && len(fields[0]) == 5 && strings.Trim(fields[0], "abcdefghijklmnopqrstuvwxyz") == "" {
-		if _, perr := wordle.ParsePattern(fields[0]); perr != nil {
-			guess, fields = fields[0], fields[1:]
-		}
-	}
-	pattern, err = wordle.ParsePattern(strings.Join(fields, ""))
-	return guess, pattern, err
-}
