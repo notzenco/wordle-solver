@@ -1,8 +1,8 @@
 # A model of human play
 
 Besides the strategies compared in [analysis.md](analysis.md), the solver
-has a second mode: a simple model of how a person plays. `play`, `sim`,
-`auto` and plain `bench` use it. It is a set of explicit, hand-set
+has a second mode: a simple model of how a person plays. `auto` and
+`assist` (with the default `--by human`), `sim` and plain `bench` use it. It is a set of explicit, hand-set
 assumptions about human habits, not something fitted to data, and this page
 lists them, then compares the model's results with results people
 reported.
@@ -15,7 +15,8 @@ the player profile in `internal/player`.
 ### Vocabulary
 
 People guess words they know. Every guess comes from the 2,315 common
-answer words, never from the long tail of valid but obscure words. When the
+answer words, never from the long tail of valid but obscure words, apart
+from the popular opener ADIEU, which isn't an answer. When the
 model chooses between similar options, it weights each word by how
 familiar it is: (ln(1 + *f*) + 1)³, where *f* is the word's count in film
 and TV subtitles (`internal/wordle/data/frequency.txt`). By that measure
@@ -25,7 +26,7 @@ HOUSE is about eight times as likely as NADIR.
 
 People tend to open with the same word or two. The model has 24 popular
 openers (ADIEU, AUDIO, CRANE, SLATE, STARE, RAISE, …). With a saved
-profile, used by `auto` and `play`, it picks two favourites at random from
+profile, used by `auto`, it picks two favourites at random from
 the 11 that split the answers well (STARE, SLATE, ROAST, HEART, …) and
 opens with the first about 80% of the time and the second about 20%.
 Without a profile (`sim`, `bench`), it picks any of the 24 at random.
