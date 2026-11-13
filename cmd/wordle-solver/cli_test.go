@@ -56,7 +56,7 @@ func TestOptionsAreScopedToTheirCommand(t *testing.T) {
 
 func TestOptionsMayFollowArguments(t *testing.T) {
 	code, out, errOut := run(t, "sim", "crane", "--hard", "--seed", "1")
-	if code != 0 || !strings.Contains(out, "CRANE") {
+	if code != 0 || !strings.Contains(out, "C R A N E") {
 		t.Fatalf("code %d, stdout %q, stderr %q", code, out, errOut)
 	}
 }

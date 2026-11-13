@@ -2,144 +2,161 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
-	"math/rand/v2"
 	"os"
-	"sort"
 	"strings"
-	"time"
 
-	modeleval "github.com/notzenco/wordle-solver/internal/eval"
+	"github.com/notzenco/wordle-solver/internal/player"
 	"github.com/notzenco/wordle-solver/internal/wordle"
 )
 
-// modelSuggester asks a chat or decision model for each guess. Decision
-// models choose from up to maxOptions words that fit the clues so far.
-type modelSuggester struct {
-	provider   provider
-	model      string
-	kind       string
-	autoKind   bool
-	maxOptions int
-	timeout    time.Duration
-	rng        *rand.Rand
-	valid      map[string]bool
-}
-
-func newModelSuggester(p provider, model string, rng *rand.Rand) *modelSuggester {
-	valid := map[string]bool{}
-	for _, w := range wordle.ValidWords() {
-		valid[w] = true
+func input() *bufio.Scanner {
+	if stdin != nil {
+		return bufio.NewScanner(stdin)
 	}
-	return &modelSuggester{provider: p, model: model, kind: providerKind(p), autoKind: p.Kind == "",
-		maxOptions: 64, timeout: time.Minute, rng: rng, valid: valid}
+	return bufio.NewScanner(os.Stdin)
 }
 
-// suggest returns the model's guess and a short description of how it was
-// chosen, or an error saying why the reply can't be used.
-func (m *modelSuggester) suggest(history []wordle.Turn, hard bool) (string, string, error) {
-	for {
-		var offered []string
-		var player modeleval.Player = &chatPlayer{m.provider, m.model, 0, 64, m.timeout}
-		if m.kind == "systemone" {
-			offered = modeleval.Options(history, m.maxOptions, 0, m.rng.Uint64())
-			player = &systemonePlayer{m.provider, m.model, m.timeout}
+// validWords is every word the game accepts as a guess.
+func validWords() map[string]bool {
+	m := map[string]bool{}
+	for _, w := range wordle.ValidWords() {
+		m[w] = true
+	}
+	return m
+}
+
+// checkGuess explains why a typed guess can't be played, if it can't.
+func checkGuess(word string, valid map[string]bool, history []wordle.Turn, hard bool) error {
+	switch {
+	case len(word) != 5 || strings.Trim(word, "abcdefghijklmnopqrstuvwxyz") != "":
+		return fmt.Errorf("type a five-letter word")
+	case !valid[word]:
+		return fmt.Errorf("%s isn't in the word list", strings.ToUpper(word))
+	case hard && !wordle.HardValid(word, history):
+		return fmt.Errorf("Hard Mode: %s must reuse every revealed letter", strings.ToUpper(word))
+	}
+	return nil
+}
+
+// playYourself lets a person play the puzzle with coloured tiles and no
+// hints. Published puzzles are saved to the person's own history.
+func playYourself(p puzzle, hard, save bool) error {
+	dir, mine, err := ownGames()
+	if err != nil {
+		return err
+	}
+	if g, ok := mine[p.number]; ok && p.number >= 0 && save {
+		fmt.Fprintf(stdout, "%s\nYou already played this one:\n\n", p.title())
+		for _, t := range g.Turns {
+			fmt.Fprintln(stdout, tiles(t.Guess, t.Pattern))
 		}
-		reply, err := player.Guess(modeleval.Observation{History: history, Attempts: len(history), Hard: hard, Options: offered})
-		if errors.Is(err, modeleval.ErrDecisionModel) && m.autoKind {
-			fmt.Fprintf(stderr, "%s is a decision model; it will choose from the words that fit the clues.\n", m.model)
-			m.kind, m.autoKind = "systemone", false
+		return nil
+	}
+	fmt.Fprintf(stdout, "%s. Six guesses; type a word and press Enter.\n\n", p.title())
+	in, valid := input(), validWords()
+	var turns []wordle.Turn
+	for len(turns) < 6 {
+		fmt.Fprintf(stdout, "guess %d> ", len(turns)+1)
+		if !in.Scan() {
+			fmt.Fprintln(stdout)
+			return nil
+		}
+		word := strings.ToLower(strings.TrimSpace(in.Text()))
+		if err := checkGuess(word, valid, turns, hard); err != nil {
+			fmt.Fprintln(stdout, "  "+err.Error())
 			continue
 		}
-		if err != nil {
-			return "", "", err
-		}
-		guess, err := modeleval.Parse(reply.Text)
-		switch {
-		case err != nil:
-			return "", "", fmt.Errorf("unreadable reply %q", reply.Text)
-		case !m.valid[guess]:
-			return "", "", fmt.Errorf("%s is not a valid word", strings.ToUpper(guess))
-		case hard && !wordle.HardValid(guess, history):
-			return "", "", fmt.Errorf("%s breaks Hard Mode", strings.ToUpper(guess))
-		}
-		if offered == nil {
-			return guess, m.model, nil
-		}
-		if len(offered) == 1 {
-			return guess, fmt.Sprintf("%s, the only word that fits", m.model), nil
-		}
-		return guess, fmt.Sprintf("%s, %s of %d options", m.model, topChoices(reply.Probabilities, 3), len(offered)), nil
-	}
-}
-
-// topChoices formats the most probable options, such as "39% CRANE, 12% SLATE".
-func topChoices(p map[string]float64, n int) string {
-	words := make([]string, 0, len(p))
-	for w := range p {
-		words = append(words, w)
-	}
-	sort.Slice(words, func(i, j int) bool {
-		if p[words[i]] != p[words[j]] {
-			return p[words[i]] > p[words[j]]
-		}
-		return words[i] < words[j]
-	})
-	parts := []string{}
-	for _, w := range words[:min(n, len(words))] {
-		parts = append(parts, fmt.Sprintf("%.0f%% %s", 100*p[w], strings.ToUpper(w)))
-	}
-	return strings.Join(parts, ", ")
-}
-
-func play(s *wordle.Solver, opts options, m *modelSuggester) {
-	var in *bufio.Scanner
-	if stdin != nil {
-		in = bufio.NewScanner(stdin)
-	} else {
-		in = bufio.NewScanner(os.Stdin)
-	}
-	fmt.Fprintln(stdout, "Type each suggestion into Wordle, then enter the colours it showed")
-	fmt.Fprintln(stdout, "as g/y/b (e.g. bygbb). To play your own word instead: 'word pattern'.")
-	fmt.Fprintln(stdout)
-	for s.Turn() <= 6 {
-		suggestion, err := s.NextGuess()
-		if err != nil {
-			fail(err.Error())
-		}
-		detail := fmt.Sprintf("%d possible answers", len(s.Candidates()))
-		if m != nil {
-			guess, how, err := m.suggest(s.History, opts.hard)
-			if err != nil {
-				fmt.Fprintf(stdout, "  %s couldn't suggest a guess (%v); showing the solver's suggestion instead.\n", m.model, err)
-				detail = "solver; " + detail
-			} else {
-				suggestion, detail = guess, how
-			}
-		}
-		fmt.Fprintf(stdout, "Guess %d: %s   (%s)\n", s.Turn(), strings.ToUpper(suggestion), detail)
-		var guess, pattern string
-		for {
-			fmt.Fprint(stdout, "  result> ")
-			if !in.Scan() {
-				return
-			}
-			guess, pattern, err = parseResult(in.Text(), suggestion)
-			if err == nil {
-				break
-			}
-			fmt.Fprintln(stdout, "  "+err.Error())
-		}
-		s.Record(guess, pattern)
-		if pattern == wordle.Solved {
+		t := wordle.Turn{Guess: word, Pattern: wordle.Score(word, p.answer)}
+		turns = append(turns, t)
+		fmt.Fprintln(stdout, "  "+tiles(t.Guess, t.Pattern))
+		if t.Pattern == wordle.Solved {
 			break
 		}
 	}
 	fmt.Fprintln(stdout)
-	fmt.Fprint(stdout, shareText("", s.History))
-	if opts.copy {
-		copyText(shareText("", s.History))
+	if turns[len(turns)-1].Pattern == wordle.Solved {
+		fmt.Fprintf(stdout, "Solved in %d.\n\n", len(turns))
+	} else {
+		fmt.Fprintf(stdout, "The answer was %s.\n\n", strings.ToUpper(p.answer))
+	}
+	number := ""
+	if p.number >= 0 {
+		number = thousands(p.number) + " "
+	}
+	fmt.Fprint(stdout, shareText(number, turns))
+	if !save || p.number < 0 {
+		return nil
+	}
+	mine[p.number] = player.Game{Date: p.date, Turns: turns}
+	return player.SaveMine(dir, mine)
+}
+
+// assist helps a person play: they type each word they played, it shows the
+// colours, then suggests the next word with the chosen approach. With
+// manual, the person types the colours too and no answer is needed.
+func assist(a advisor, p *puzzle, hard bool) {
+	in, valid := input(), validWords()
+	if p != nil {
+		fmt.Fprintf(stdout, "%s. Type the word you played; the colours are filled in.\n", p.title())
+	} else {
+		fmt.Fprintln(stdout, "Type the word you played, then the colours the game showed as g/y/b (e.g. bygbb).")
+	}
+	fmt.Fprintln(stdout, "Press Enter on an empty line to take the suggestion.")
+	fmt.Fprintln(stdout)
+	var history []wordle.Turn
+	suggestion := ""
+	for len(history) < 6 {
+		fmt.Fprintf(stdout, "word %d> ", len(history)+1)
+		if !in.Scan() {
+			fmt.Fprintln(stdout)
+			return
+		}
+		word := strings.ToLower(strings.TrimSpace(in.Text()))
+		if word == "" {
+			word = suggestion
+		}
+		if err := checkGuess(word, valid, history, hard); err != nil {
+			fmt.Fprintln(stdout, "  "+err.Error())
+			continue
+		}
+		var pattern string
+		if p != nil {
+			pattern = wordle.Score(word, p.answer)
+		} else {
+			for {
+				fmt.Fprint(stdout, "colours> ")
+				if !in.Scan() {
+					fmt.Fprintln(stdout)
+					return
+				}
+				var err error
+				if pattern, err = wordle.ParsePattern(strings.TrimSpace(in.Text())); err == nil {
+					break
+				}
+				fmt.Fprintln(stdout, "  "+err.Error())
+			}
+		}
+		history = append(history, wordle.Turn{Guess: word, Pattern: pattern})
+		fmt.Fprintln(stdout, "  "+tiles(word, pattern))
+		if pattern == wordle.Solved {
+			fmt.Fprintf(stdout, "\nSolved in %d.\n", len(history))
+			return
+		}
+		if len(history) == 6 {
+			break
+		}
+		g, note, err := a.suggest(history, hard)
+		if err != nil {
+			suggestion = ""
+			fmt.Fprintf(stdout, "  no suggestion: %v\n", err)
+			continue
+		}
+		suggestion = g
+		fmt.Fprintf(stdout, "  try %s  (%s)\n", strings.ToUpper(g), note)
+	}
+	if p != nil {
+		fmt.Fprintf(stdout, "\nThe answer was %s.\n", strings.ToUpper(p.answer))
 	}
 }
 

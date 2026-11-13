@@ -26,13 +26,14 @@ func newSolver(rng *rand.Rand, opts options, store *player.Store) *wordle.Solver
 	return s
 }
 
-func auto(rng *rand.Rand, opts options, store *player.Store, day time.Time, fresh bool) {
+// auto solves one published puzzle and reports whether it played a new game.
+func auto(rng *rand.Rand, opts options, store *player.Store, day time.Time, fresh bool) bool {
 	number := wordle.NumberForDate(day)
 	if store != nil && !fresh {
 		if g, ok := store.Game(number); ok {
 			fmt.Fprintf(stdout, "%s(Already played; -fresh plays it again.)\n\n", autoHeader(number, g.Date))
 			printGame(thousands(number)+" ", g.Turns, opts.copy)
-			return
+			return false
 		}
 	}
 
@@ -55,6 +56,7 @@ func auto(rng *rand.Rand, opts options, store *player.Store, day time.Time, fres
 			fail(fmt.Sprintf("saving game: %v", err))
 		}
 	}
+	return true
 }
 
 // autoHeader introduces a game against a fetched answer and says how that
@@ -104,7 +106,7 @@ func autoRange(rng *rand.Rand, opts options, store *player.Store, numbers []int,
 		time.Sleep(200 * time.Millisecond) // go easy on NYT's server
 	}
 	fmt.Fprintln(stdout)
-	printStats(store)
+	printStats(store.Stats(wordle.NumberForDate(time.Now())))
 }
 
 // syncAnswers downloads every past answer not yet cached, a few at a time.

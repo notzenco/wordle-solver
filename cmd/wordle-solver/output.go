@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"time"
 	"unicode/utf16"
 
 	"github.com/notzenco/wordle-solver/internal/player"
@@ -30,8 +29,7 @@ func score(turns []wordle.Turn) string {
 	return "X/6"
 }
 
-func printStats(store *player.Store) {
-	st := store.Stats(wordle.NumberForDate(time.Now()))
+func printStats(st player.Stats) {
 	if st.Played == 0 {
 		fmt.Fprintln(stdout, "No games played yet.")
 		return
@@ -52,7 +50,7 @@ func printStats(store *player.Store) {
 // printGame shows the guesses with their colours, then the share text.
 func printGame(number string, turns []wordle.Turn, toClipboard bool) {
 	for _, t := range turns {
-		fmt.Fprintf(stdout, "%s  %s\n", wordle.Emoji(t.Pattern), strings.ToUpper(t.Guess))
+		fmt.Fprintln(stdout, tiles(t.Guess, t.Pattern))
 	}
 	fmt.Fprintln(stdout)
 	share := shareText(number, turns)
