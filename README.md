@@ -118,6 +118,19 @@ In `play`, type the suggested word into the game and enter the colours it
 showed as `g`/`y`/`b` (or `2`/`1`/`0`). To play your own word instead, enter
 `word pattern`, for example `crane bygbb`.
 
+## Evaluating models
+
+Language models can play against the engine and the entropy strategy:
+
+```sh
+wordle-solver models ollama
+wordle-solver eval --model ollama/llama3.2 --games 10 --seed 42 --out eval.jsonl
+```
+
+`settings` shows effective defaults and their sources; `providers` lists
+configured servers. See [evaluating models](docs/eval.md) for configuration,
+held-out answers, transcripts and rerouting.
+
 ## Answer data
 
 The benchmark and `play` need no network access: the answer list ships

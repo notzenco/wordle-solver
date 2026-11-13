@@ -20,6 +20,7 @@ const usage = `usage:
   wordle-solver auto -from N [-to M] [-fresh]                       solve a range of puzzles
   wordle-solver clean [-y]                                          delete your profile, history and cached answers
   wordle-solver update [-force]                                     install the latest release
+  wordle-solver eval --model PROVIDER/MODEL [--games N]             evaluate a model
   wordle-solver providers [add|remove|check]                        configure API providers
   wordle-solver models PROVIDER                                    list server models
   wordle-solver settings [set KEY VALUE | reset KEY]                configure defaults
@@ -38,6 +39,13 @@ options for every command:
   -sloppy P   chance of a human slip per guess with turns to spare (default 0.2)
   -copy       copy the share grid to the clipboard
   -seed N     make choices reproducible
+  -model ID   eval provider/model (or bare model with -base-url)
+  -games N    eval games (default 10); -set answers|heldout
+  -temperature N  eval sampling temperature (default 0)
+  -max-tokens N   eval response limit (default 64)
+  -timeout D  eval request timeout (default 1m); -out PATH transcript
+  -base-url URL   one-off API endpoint; -api-key-env NAME key variable
+  -strategy NAME  bench strategy (default human model)
   -home DIR   keep player data in DIR (default $WORDLE_SOLVER_HOME or the user config folder)
 `
 
@@ -131,6 +139,10 @@ func main() {
 	}
 
 	switch cmd {
+	case "eval":
+		if err := evalCommand(fs, config); err != nil {
+			fail(err.Error())
+		}
 	case "providers":
 		if err := providersCommand(fs.Args(), &config); err != nil {
 			fail(err.Error())
