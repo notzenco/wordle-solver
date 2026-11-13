@@ -3,9 +3,9 @@
 //
 //	go run ./tools/report
 //
-// It rewrites the sections of docs/analysis.md between
-// <!-- generated:NAME --> and <!-- /generated:NAME --> markers, and writes
-// docs/results.json and the SVG charts in docs/img.
+// It rewrites the sections of docs/analysis.md (and the headline table in
+// README.md) between <!-- generated:NAME --> and <!-- /generated:NAME -->
+// markers, and writes docs/results.json and the SVG charts in docs/img.
 package main
 
 import (
@@ -38,6 +38,7 @@ type run struct {
 
 func main() {
 	docs := flag.String("docs", "docs", "folder holding analysis.md")
+	readme := flag.String("readme", "README.md", "README whose headline table to rewrite")
 	flag.Parse()
 
 	var runs []run
@@ -88,6 +89,10 @@ func main() {
 		out = replaceSection(out, name, body)
 	}
 	check(os.WriteFile(path, []byte(out), 0o644))
+
+	doc, err = os.ReadFile(*readme)
+	check(err)
+	check(os.WriteFile(*readme, []byte(replaceSection(string(doc), "headline", headlineTable(runs))), 0o644))
 }
 
 func check(err error) {
@@ -100,7 +105,7 @@ func check(err error) {
 func replaceSection(doc, name, body string) string {
 	re := regexp.MustCompile(`(?s)(<!-- generated:` + name + ` -->\n).*?(<!-- /generated:` + name + ` -->)`)
 	if !re.MatchString(doc) {
-		check(fmt.Errorf("analysis.md has no generated:%s section", name))
+		check(fmt.Errorf("no generated:%s section to rewrite", name))
 	}
 	return re.ReplaceAllLiteralString(doc, "<!-- generated:"+name+" -->\n"+body+"<!-- /generated:"+name+" -->")
 }
