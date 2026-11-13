@@ -58,6 +58,12 @@ Model identifiers split at the first slash only.
 
 ## Turns, rerouting and transcripts
 
+Eval scoring counts every reply: malformed replies, unknown words and Hard
+Mode violations use a turn, so models are compared on the same terms.
+`auto --by model` plays by the game's rules instead: such a word is
+rejected without using a turn, up to three times per turn, and those
+attempts are marked `Free` in the result.
+
 Replies accept a single five-letter word (optionally quoted) or a JSON
 object with a guess field, optionally inside one Markdown code fence. Ambiguous prose is malformed. Malformed replies,
 unknown words and Hard Mode violations waste a turn without adding feedback.

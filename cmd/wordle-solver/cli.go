@@ -132,8 +132,8 @@ var commands = []*command{
 			"           occasional slips; each run draws a new seed, shown so --seed can replay it.\n" +
 			"           Games are saved to its history. (default)\n" +
 			"  solver   the entropy strategy, the best in the benchmark\n" +
-			"  model    a model through the eval harness; it never sees the answer, and unusable\n" +
-			"           replies waste a turn\n" +
+			"  model    a model through the eval harness; it never sees the answer. As in the game, a\n" +
+			"           word that isn't valid is rejected without using a turn (three tries a turn)\n" +
 			"Only human games are saved; --from and --to need --by human.",
 		options: append([]string{"by", "model", "date", "id", "random", "from", "to", "fresh", "dry"}, solverOptions...),
 		examples: []string{"wordle-solver", "wordle-solver auto --by solver", "wordle-solver auto --by model --model omlx/clef-flash-4bit",

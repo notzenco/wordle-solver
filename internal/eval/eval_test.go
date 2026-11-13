@@ -56,3 +56,21 @@ func TestParseAcceptsFencedJSON(t *testing.T) {
 		t.Error("text outside the fence was accepted")
 	}
 }
+
+func TestRetriesLetRejectedWordsSkipTheTurnCount(t *testing.T) {
+	replies := func() *Scripted {
+		return &Scripted{Replies: []Reply{{Text: "zzzzz"}, {Text: "toolong"}, {Text: "crane"}, {Text: "crazy"}}}
+	}
+	strict := PlayWithOptions(replies(), "crazy", "m", false, PlayOptions{})
+	if strict.Guesses != 4 || strict.Invalid != 1 || strict.Malformed != 1 {
+		t.Fatalf("strict scoring: %+v", strict)
+	}
+	game := PlayWithOptions(replies(), "crazy", "m", false, PlayOptions{Retries: 3})
+	if !game.Solved || game.Guesses != 2 || len(game.Attempts) != 4 || !game.Attempts[0].Free || game.Attempts[2].Free {
+		t.Fatalf("with retries: solved %v, guesses %d, attempts %+v", game.Solved, game.Guesses, game.Attempts)
+	}
+	capped := PlayWithOptions(&Scripted{Replies: []Reply{{Text: "zzzzz"}, {Text: "zzzzz"}, {Text: "crazy"}}}, "crazy", "m", false, PlayOptions{Retries: 1})
+	if capped.Guesses != 2 {
+		t.Fatalf("one retry should let the second rejection use a turn: %d", capped.Guesses)
+	}
+}

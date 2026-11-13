@@ -114,8 +114,10 @@ wordle-solver settings                # saved defaults and where each value come
 | --- | --- | --- |
 | `human` (default) | the human-like player model | habits and occasional slips; each run draws a new seed, printed so `--seed` replays it |
 | `solver` | the entropy strategy | the best in the benchmark |
-| `model` | a model given with `--model`, through the [eval harness](docs/eval.md) | chat models reply with a word; decision models such as Clef choose from up to 64 words that fit |
+| `model` | a model given with `--model`, through the [eval harness](docs/eval.md) | chat models reply with a word; decision models such as Clef choose from up to 64 words that fit; as in the game, an invalid word is rejected without using a turn (three tries a turn) |
 
+As in the game, a guess that isn't five letters or isn't in the word list
+is rejected and doesn't use a turn, whether you type it or a model does.
 Every approach chooses from the colours alone. The answer is looked up only
 to score guesses, and a model never sees it. Only the human-like player's
 games are saved, to its own history; games you play with `play` go into a
