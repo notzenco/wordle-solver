@@ -41,3 +41,19 @@ func TestProviders(t *testing.T) {
 		t.Fatal("override remained")
 	}
 }
+
+func TestModelKeyRedaction(t *testing.T) {
+	t.Setenv("PRIVATE_API_KEY", "secret-value")
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"data":[{"id":"secret-value"}]}`))
+	}))
+	defer s.Close()
+	m, e := fetchModels(provider{s.URL, "PRIVATE_API_KEY"})
+	if e != nil || len(m) != 1 || m[0] != "[redacted]" {
+		t.Fatal("key redaction failed")
+	}
+	c := configFile{Providers: map[string]provider{"test": {s.URL, "PRIVATE_API_KEY"}}}
+	if e := providersCommand([]string{"check", "test"}, &c); e != nil {
+		t.Fatal(e)
+	}
+}

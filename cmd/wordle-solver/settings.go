@@ -47,6 +47,17 @@ func loadConfig() (configFile, error) {
 	if c.Settings == nil {
 		c.Settings = map[string]string{}
 	}
+	for n, p := range c.Providers {
+		if !providerName.MatchString(n) {
+			return c, fmt.Errorf("invalid provider name in config")
+		}
+		if err := validBase(p.BaseURL); err != nil {
+			return c, err
+		}
+		if err := validKeyEnv(p.KeyEnv); err != nil {
+			return c, err
+		}
+	}
 	for k, v := range c.Settings {
 		if err := validateSetting(k, v); err != nil {
 			return c, err
@@ -154,7 +165,7 @@ func applySettings(fs *flag.FlagSet, c configFile) (map[string]string, error) {
 		if e := validateSetting(k, v); e != nil {
 			return nil, e
 		}
-		if e := fs.Set(name, v); e != nil {
+		if e := f.Value.Set(v); e != nil {
 			return nil, e
 		}
 		src[k] = source

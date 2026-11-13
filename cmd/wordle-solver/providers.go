@@ -182,7 +182,11 @@ func fetchModels(p provider) ([]string, error) {
 	}
 	m := []string{}
 	for _, x := range r.Data {
-		m = append(m, x.ID)
+		id := x.ID
+		if key := os.Getenv(p.KeyEnv); key != "" {
+			id = strings.ReplaceAll(id, key, "[redacted]")
+		}
+		m = append(m, id)
 	}
 	sort.Strings(m)
 	return m, nil

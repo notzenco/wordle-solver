@@ -46,3 +46,25 @@ func TestSettings(t *testing.T) {
 		t.Fatal("not reset")
 	}
 }
+
+func TestSavedDefaultsAndSet(t *testing.T) {
+	t.Setenv("WORDLE_SOLVER_HOME", t.TempDir())
+	c, _ := loadConfig()
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	v := fs.Int("max", 6, "")
+	src, e := applySettings(fs, c)
+	if e != nil || *v != 6 || src["max"] != "default" {
+		t.Fatal(src, e)
+	}
+	if e = settingsCommand([]string{"set", "max", "4"}, fs, c, src); e != nil {
+		t.Fatal(e)
+	}
+	c, e = loadConfig()
+	if e != nil {
+		t.Fatal(e)
+	}
+	src, e = applySettings(fs, c)
+	if e != nil || *v != 4 || src["max"] != "config" {
+		t.Fatal(src, e, *v)
+	}
+}
