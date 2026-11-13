@@ -2,17 +2,46 @@
 
 A Wordle solver whose games read like a decent human player's, not a bot's.
 
+## Install
+
+Download the archive for your system from the
+[latest release](https://github.com/notzenco/wordle-solver/releases/latest)
+(macOS, Linux and Windows, on Intel/AMD and ARM), unpack it and put
+`wordle-solver` (or `wordle-solver.exe`) somewhere on your `PATH`.
+`checksums.txt` lists each archive's SHA-256. The binaries are not signed:
+on macOS, clear the download quarantine with
+`xattr -d com.apple.quarantine wordle-solver`; on Windows, SmartScreen may
+ask you to confirm the first run.
+
+To build from source instead, with Go installed:
+
+```sh
+go install github.com/notzenco/wordle-solver/cmd/wordle-solver@latest
+```
+
+or, from a checkout, `go install ./cmd/wordle-solver`. Set `GOBIN` (for
+example `GOBIN=~/.local/bin`) to choose where it goes.
+
+`wordle-solver version` prints the version you have, and
+`wordle-solver update` installs the latest release in place of the running
+binary. It downloads the archive for your system from GitHub, checks it
+against the release's `checksums.txt` and swaps the binary in with a rename,
+so a failed update leaves the old one working. A build from a checkout has no
+release version, so `update` leaves it alone unless you pass `-force`. If
+the binary is in a folder you can't write to, rerun with permission to
+change it (for example with `sudo`).
+
 ## Run
 
 ```sh
-GOBIN=~/.local/bin go install .   # install as wordle-solver
 
 wordle-solver                     # solve today's NYT puzzle by itself
 wordle-solver -date 2026-11-12    # solve another day's puzzle
 wordle-solver --id 0              # solve by puzzle number (0 = CIGAR, 2021-06-19)
 wordle-solver -from 1900          # solve every puzzle from #1900 to today (-to N to stop)
 wordle-solver -catchup            # solve every day since your last game
-wordle-solver schedule            # solve each day automatically (macOS)
+wordle-solver schedule            # solve each day automatically (off until you run this)
+wordle-solver clean               # delete your profile, history and cached answers
 wordle-solver stats               # your NYT-style statistics
 wordle-solver sync                # download every past answer (once; a few minutes)
 wordle-solver -copy               # also copy the share grid to the clipboard
@@ -65,20 +94,52 @@ change). Such a player rules out answers from before the puzzle being solved,
 using whatever `sync` and earlier games have cached. If the clues leave
 nothing else, the old answers come back, so a repeated answer is still found.
 
-The profile, history and answer cache live in `~/Library/Application Support/wordle-solver`
-on macOS (the user config directory elsewhere). Set `WORDLE_SOLVER_HOME` to
-use another folder. Delete the folder to start over as a new player.
+The profile, history and answer cache live in a `wordle-solver` folder in
+the user config directory:
 
-## Daily automatic play (macOS)
+| System | Folder |
+| --- | --- |
+| macOS | `~/Library/Application Support/wordle-solver` |
+| Linux | `~/.config/wordle-solver` (or under `$XDG_CONFIG_HOME`) |
+| Windows | `%AppData%\wordle-solver` |
 
-`wordle-solver schedule` installs a launchd job,
-`~/Library/LaunchAgents/wordle-solver.daily.plist`. Each day at 00:05 local
-time (`-at HH:MM` to change it) it runs `wordle-solver auto -catchup`. If the
-Mac was asleep, launchd runs the job when it wakes, and `-catchup` plays
-every day since your last game, so the streak survives. Output goes to
-`~/Library/Logs/wordle-solver.log`. Run `wordle-solver schedule -remove` to
-stop it. Rerun `schedule` after moving the binary, as the job records its
-path.
+Set `WORDLE_SOLVER_HOME`, or pass `-home DIR`, to use another folder.
+
+`wordle-solver clean` deletes that data and the daily run's log, after
+asking (`-y` skips the question), so the next game starts a new player. It
+removes only the files the solver writes, so other files in a custom
+`WORDLE_SOLVER_HOME` folder are kept. It leaves a daily run in place; remove
+that with `schedule -remove`.
+
+## Daily automatic play
+
+Nothing runs on its own until you ask: `wordle-solver schedule` sets up a
+daily run with your system's own scheduler. Each day at 00:05 local time
+(`-at HH:MM` to change it) it runs `wordle-solver auto -catchup`, which plays
+every day since your last game, so the streak survives a machine that was
+off or asleep. Run `wordle-solver schedule -remove` to stop it. Rerun
+`schedule` after moving the binary, as the job records its path.
+
+| System | Scheduler | Log |
+| --- | --- | --- |
+| macOS | launchd job `~/Library/LaunchAgents/wordle-solver.daily.plist`; runs a missed job on wake | `~/Library/Logs/wordle-solver.log` |
+| Linux | systemd user timer `wordle-solver.timer` with `Persistent=true` | `~/.local/state/wordle-solver/wordle-solver.log` |
+| Windows | Task Scheduler task `wordle-solver daily`, set to run as soon as possible after a missed start | `%LocalAppData%\wordle-solver\wordle-solver.log` |
+
+On Linux the timer runs while you are logged in; `loginctl enable-linger`
+lets it run when you are not. Without systemd, run
+`wordle-solver auto -catchup -log FILE` daily from cron instead. `-copy`
+uses `pbcopy` on macOS, `clip` on Windows, and `wl-copy` or `xclip` on Linux.
+
+## Releases
+
+Versions follow [semantic versioning](https://semver.org) and come from the
+[Conventional Commit](https://www.conventionalcommits.org) messages on
+`main`. [release-please](https://github.com/googleapis/release-please) keeps
+a release PR open with the next version and changelog; merging it tags the
+release, and the release workflow attaches binaries for every platform.
+Before 1.0, `feat` commits raise the minor version and `fix` commits the
+patch version.
 
 ## What makes it look human
 
@@ -113,12 +174,23 @@ Results over every answer:
 | `-max 4` | 3.7 | about 2.5% (even a perfect solver needs a fifth guess for about 1.6%) |
 | `-hard` | 3.8 | about 0.3% lost, to traps like _ATCH and _O_ER |
 
+## Project layout
+
+| Path | What it holds |
+| --- | --- |
+| `cmd/wordle-solver` | The command: flags, subcommands and output |
+| `internal/wordle` | Scoring, the human-looking solver and the NYT puzzle lookup |
+| `internal/player` | The saved profile, game history, answer cache and statistics |
+| `internal/schedule` | The daily run, via launchd, systemd or Task Scheduler |
+| `internal/selfupdate` | The `update` command's download, checksum check and binary swap |
+| `scripts/build-release.sh` | Builds the release archives; CI and the release workflow run it |
+
 ## Data and licence
 
 The code is MIT licensed (see `LICENSE`).
 
-- `wordle/data/answers.txt` is the original public Wordle answer list.
-- `wordle/data/frequency.txt` holds counts for every valid five-letter
+- `internal/wordle/data/answers.txt` is the original public Wordle answer list.
+- `internal/wordle/data/frequency.txt` holds counts for every valid five-letter
   Wordle word that appears in
   [FrequencyWords](https://github.com/hermitdave/FrequencyWords) (OpenSubtitles
   2018, by Hermit Dave), so later answers have counts too. It is licensed

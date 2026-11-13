@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"wordle-solver/wordle"
+	"github.com/notzenco/wordle-solver/internal/wordle"
 )
 
 func lost() []wordle.Turn {
