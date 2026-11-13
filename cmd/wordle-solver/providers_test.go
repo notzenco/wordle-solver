@@ -48,11 +48,11 @@ func TestModelKeyRedaction(t *testing.T) {
 		w.Write([]byte(`{"data":[{"id":"secret-value"}]}`))
 	}))
 	defer s.Close()
-	m, e := fetchModels(provider{s.URL, "PRIVATE_API_KEY"})
+	m, e := fetchModels(provider{s.URL, "PRIVATE_API_KEY", ""})
 	if e != nil || len(m) != 1 || m[0] != "[redacted]" {
 		t.Fatal("key redaction failed")
 	}
-	c := configFile{Providers: map[string]provider{"test": {s.URL, "PRIVATE_API_KEY"}}}
+	c := configFile{Providers: map[string]provider{"test": {s.URL, "PRIVATE_API_KEY", ""}}}
 	if e := providersCommand([]string{"check", "test"}, &c); e != nil {
 		t.Fatal(e)
 	}

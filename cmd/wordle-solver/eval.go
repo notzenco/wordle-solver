@@ -22,8 +22,10 @@ type chatPlayer struct {
 }
 
 func (p *chatPlayer) Guess(o modeleval.Observation) (modeleval.Reply, error) {
-	history, _ := json.Marshal(o.History)
-	prompt := fmt.Sprintf("Play Wordle. Guess a five-letter English word within six attempts. Feedback: g=green (correct position), y=yellow (elsewhere), b=grey (absent); repeated letters use remaining counts. Hard Mode=%t: retain greens and reuse all revealed letters including multiplicity. Attempts already used: %d. History: %s. Return only a JSON object with one key, guess, containing your next word. Do not explain.", o.Hard, o.Attempts, history)
+	prompt := gameState(o) + "Return only a JSON object with one key, guess, containing your next word. Do not explain."
+	if o.Options != nil {
+		prompt += " Choose only from: " + strings.Join(o.Options, ", ")
+	}
 	body, _ := json.Marshal(map[string]any{"model": p.model, "temperature": p.temperature, "max_tokens": p.maxTokens, "messages": []map[string]string{{"role": "user", "content": prompt}}})
 	b, e := apiRequest(&http.Client{Timeout: p.timeout}, p.provider, "/chat/completions", bytes.NewReader(body))
 	if e != nil {
@@ -48,7 +50,7 @@ func evalCommand(fs *flag.FlagSet, c configFile) error {
 	name, model, e := modeleval.SplitModel(spec)
 	var p provider
 	if value("base-url") != "" {
-		p = provider{value("base-url"), value("api-key-env")}
+		p = provider{value("base-url"), value("api-key-env"), ""}
 		if e != nil {
 			model = spec
 			name = "one-off"
@@ -68,6 +70,19 @@ func evalCommand(fs *flag.FlagSet, c configFile) error {
 			p.KeyEnv = value("api-key-env")
 		}
 	}
+	kind := providerKind(p)
+	if value("kind") != "" {
+		kind = value("kind")
+	}
+	if kind == "systemone" && value("options") != "candidates" {
+		return fmt.Errorf("systemone requires --options candidates")
+	}
+	p.Kind = kind
+	cap, _ := strconv.Atoi(value("max-options"))
+	distractors, _ := strconv.Atoi(value("distractors"))
+	if value("options") != "candidates" && distractors > 0 {
+		return fmt.Errorf("--distractors requires --options candidates")
+	}
 	games, _ := strconv.Atoi(value("games"))
 	seed, _ := strconv.ParseUint(value("seed"), 10, 64)
 	temperature, _ := strconv.ParseFloat(value("temperature"), 64)
@@ -86,20 +101,41 @@ func evalCommand(fs *flag.FlagSet, c configFile) error {
 	for k, n := range settingFlags {
 		settings[k] = value(n)
 	}
+	settings["eval.kind"] = kind
 	meta := map[string]any{"type": "run", "model": model, "provider": name, "base_url": p.BaseURL, "settings": settings, "seed": seed, "date": time.Now().UTC().Format(time.RFC3339), "version": versionString()}
 	if e = enc.Encode(meta); e != nil {
 		return e
 	}
-	player := &chatPlayer{p, model, temperature, maxTokens, timeout}
+	var player modeleval.Player = &chatPlayer{p, model, temperature, maxTokens, timeout}
+	if kind == "systemone" {
+		player = &systemonePlayer{p, model, timeout}
+	}
+	metricCount, inconsistent, choices := 0, 0, 0
+	probability, loss, uniform, frequency := 0.0, 0.0, 0.0, 0.0
 	solved, eligible, rerouted := 0, 0, 0
 	guesses, beyond, invalid, malformed, violations, tokens := 0, 0, 0, 0, 0, 0
 	var duration time.Duration
 	for _, a := range answers {
-		r := modeleval.Play(player, a, model, hard)
+		r := modeleval.PlayWithOptions(player, a, model, hard, modeleval.PlayOptions{Candidates: value("options") == "candidates", MaxOptions: cap, Distractors: distractors, Seed: seed})
 		if r.Rerouted {
 			rerouted++
 		} else {
 			eligible++
+			for _, attempt := range r.Attempts {
+				if attempt.Problem == "" || attempt.Problem == "hard mode violation" {
+					choices++
+					if attempt.Inconsistent {
+						inconsistent++
+					}
+				}
+				if m := attempt.Metrics; m != nil {
+					metricCount++
+					probability += m.TrueProbability
+					loss += m.LogLoss
+					uniform += m.UniformLogLoss
+					frequency += m.FrequencyLogLoss
+				}
+			}
 			guesses += r.Guesses
 			beyond += r.Beyond
 			invalid += r.Invalid
@@ -121,8 +157,25 @@ func evalCommand(fs *flag.FlagSet, c configFile) error {
 		if e = enc.Encode(map[string]any{"type": "game", "game": r}); e != nil {
 			return e
 		}
+		if r.Error != "" {
+			return fmt.Errorf("%s", r.Error)
+		}
 	}
-	if e = enc.Encode(map[string]any{"type": "summary", "games": len(answers), "eligible": eligible, "solved": solved, "rerouted": rerouted}); e != nil {
+	metrics := map[string]any{"offered_answer_turns": metricCount, "model_log_loss": 0.0, "uniform_log_loss": 0.0, "frequency_log_loss": 0.0, "true_probability": 0.0, "inconsistent_rate": 0.0}
+	if metricCount > 0 {
+		n := float64(metricCount)
+		metrics["model_log_loss"] = loss / n
+		metrics["uniform_log_loss"] = uniform / n
+		metrics["frequency_log_loss"] = frequency / n
+		metrics["true_probability"] = probability / n
+	}
+	if choices > 0 {
+		metrics["inconsistent_rate"] = float64(inconsistent) / float64(choices)
+	}
+	if kind == "systemone" {
+		fmt.Printf("decision metrics: %+v\n", metrics)
+	}
+	if e = enc.Encode(map[string]any{"metrics": metrics, "type": "summary", "games": len(answers), "eligible": eligible, "solved": solved, "rerouted": rerouted}); e != nil {
 		return e
 	}
 	fmt.Printf("model\tgames\teligible\tsolved\trerouted\n%s\t%d\t%d\t%d\t%d\n", model, len(answers), eligible, solved, rerouted)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	modeleval "github.com/notzenco/wordle-solver/internal/eval"
 	"io"
 	"net/http"
 	"net/url"
@@ -17,16 +18,17 @@ import (
 type provider struct {
 	BaseURL string `json:"base_url"`
 	KeyEnv  string `json:"api_key_env,omitempty"`
+	Kind    string `json:"kind,omitempty"`
 }
 
 var builtins = map[string]provider{
-	"ollama":     {"http://localhost:11434/v1", ""},
-	"lmstudio":   {"http://localhost:1234/v1", ""},
-	"llamacpp":   {"http://localhost:8080/v1", ""},
-	"omlx":       {"http://127.0.0.1:8000/v1", ""},
-	"omniroute":  {"http://127.0.0.1:20128/v1", "OMNIROUTE_API_KEY"},
-	"openai":     {"https://api.openai.com/v1", "OPENAI_API_KEY"},
-	"openrouter": {"https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"},
+	"ollama":     {"http://localhost:11434/v1", "", "chat"},
+	"lmstudio":   {"http://localhost:1234/v1", "", "chat"},
+	"llamacpp":   {"http://localhost:8080/v1", "", "chat"},
+	"omlx":       {"http://127.0.0.1:8000/v1", "", "chat"},
+	"omniroute":  {"http://127.0.0.1:20128/v1", "OMNIROUTE_API_KEY", "chat"},
+	"openai":     {"https://api.openai.com/v1", "OPENAI_API_KEY", "chat"},
+	"openrouter": {"https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "chat"},
 }
 var providerName = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 var envName = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
@@ -76,7 +78,7 @@ func providersCommand(args []string, c *configFile) error {
 			if _, ok := c.Providers[n]; ok {
 				src = "config"
 			}
-			fmt.Printf("%s\t%s\t%s (%s)\t%s\n", n, p.BaseURL, p.KeyEnv, keyStatus(p), src)
+			fmt.Printf("%s\t%s\t%s (%s)\t%s\t%s\n", n, p.BaseURL, p.KeyEnv, keyStatus(p), src, providerKind(p))
 		}
 		return nil
 	}
@@ -108,6 +110,7 @@ func providersCommand(args []string, c *configFile) error {
 		fs := flag.NewFlagSet("providers add", flag.ContinueOnError)
 		base := fs.String("base-url", "", "")
 		key := fs.String("api-key-env", "", "")
+		kind := fs.String("kind", "chat", "")
 		if e := fs.Parse(args[2:]); e != nil {
 			return e
 		}
@@ -120,13 +123,16 @@ func providersCommand(args []string, c *configFile) error {
 		if e := validKeyEnv(*key); e != nil {
 			return e
 		}
+		if err := validKind(*kind); err != nil {
+			return err
+		}
 		if c.Providers == nil {
 			c.Providers = map[string]provider{}
 		}
-		c.Providers[n] = provider{strings.TrimRight(*base, "/"), *key}
+		c.Providers[n] = provider{strings.TrimRight(*base, "/"), *key, *kind}
 		return saveConfig(*c)
 	}
-	return fmt.Errorf("usage: providers [add NAME --base-url URL [--api-key-env NAME] | remove NAME | check NAME]")
+	return fmt.Errorf("usage: providers [add NAME --base-url URL [--api-key-env NAME] [--kind chat|systemone] | remove NAME | check NAME]")
 }
 func findProvider(c configFile, n string) (provider, error) {
 	p, ok := allProviders(c)[n]
@@ -158,6 +164,12 @@ func apiRequest(client *http.Client, p provider, path string, body io.Reader) ([
 		return nil, fmt.Errorf("API request failed")
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == 400 && path == "/chat/completions" {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+		if strings.Contains(string(b), "not an LLM / chat model") {
+			return nil, modeleval.ErrDecisionModel
+		}
+	}
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("API returned HTTP %d", resp.StatusCode)
 	}
@@ -190,4 +202,17 @@ func fetchModels(p provider) ([]string, error) {
 	}
 	sort.Strings(m)
 	return m, nil
+}
+
+func validKind(k string) error {
+	if k != "" && k != "chat" && k != "systemone" {
+		return fmt.Errorf("kind must be chat or systemone")
+	}
+	return nil
+}
+func providerKind(p provider) string {
+	if p.Kind == "" {
+		return "chat"
+	}
+	return p.Kind
 }

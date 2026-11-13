@@ -58,3 +58,7 @@ func (st Strategy) PlayPool(answer string, hard bool, pool []string) []Turn {
 	}
 	return history
 }
+
+// FrequencyWeight supplies a positive subtitle-count weight for evaluation
+// baselines, smoothing words absent from the frequency data with one count.
+func FrequencyWeight(w string) float64 { return frequency[w] + 1 }
