@@ -1,8 +1,10 @@
 package wordle
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"slices"
+	"sync"
 	"testing"
 )
 
@@ -105,27 +107,36 @@ func TestMaxCapsFinishTurn(t *testing.T) {
 	t.Parallel()
 	allowed := map[int]int{4: len(Answers) * 3 / 100, 5: 0}
 	for limit, allow := range allowed {
-		late := 0
-		var games [][]Turn
-		for seed := range uint64(3) {
-			games = append(games, playAll(Answers, 40+seed, func(rng *rand.Rand) *Solver { return NewSolver(rng, 0, limit) })...)
-		}
-		allow *= 3
-		if limit == 5 {
-			allow = 1
-		}
-		for i, h := range games {
-			if len(h) > limit || h[len(h)-1].Pattern != Solved {
-				late++
-				if limit == 5 {
-					t.Logf("max %d: %s took %v", limit, Answers[i%len(Answers)], h)
+		t.Run(fmt.Sprintf("max%d", limit), func(t *testing.T) {
+			t.Parallel()
+			// The seeds play at once; together they are the slowest test here.
+			runs := make([][][]Turn, 3)
+			var wg sync.WaitGroup
+			for seed := range runs {
+				wg.Go(func() {
+					runs[seed] = playAll(Answers, 40+uint64(seed), func(rng *rand.Rand) *Solver { return NewSolver(rng, 0, limit) })
+				})
+			}
+			wg.Wait()
+			games := slices.Concat(runs...)
+			allow *= 3
+			if limit == 5 {
+				allow = 1
+			}
+			late := 0
+			for i, h := range games {
+				if len(h) > limit || h[len(h)-1].Pattern != Solved {
+					late++
+					if limit == 5 {
+						t.Logf("max %d: %s took %v", limit, Answers[i%len(Answers)], h)
+					}
 				}
 			}
-		}
-		t.Logf("max %d: %d of %d over the limit", limit, late, len(games))
-		if late > allow {
-			t.Errorf("max %d: %d games went over the limit, allowed %d", limit, late, allow)
-		}
+			t.Logf("max %d: %d of %d over the limit", limit, late, len(games))
+			if late > allow {
+				t.Errorf("max %d: %d games went over the limit, allowed %d", limit, late, allow)
+			}
+		})
 	}
 }
 
