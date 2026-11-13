@@ -106,7 +106,7 @@ func (s *Store) Save() error {
 // else is left in it. It removes only files it knows by name, since
 // WORDLE_SOLVER_HOME may point at a folder that holds other things.
 func Clean(dir string) (removed []string, err error) {
-	for _, name := range []string{profileFile, historyFile, answersFile} {
+	for _, name := range []string{profileFile, historyFile, answersFile, mineFile} {
 		for _, p := range []string{filepath.Join(dir, name), filepath.Join(dir, name+".tmp")} {
 			err := os.Remove(p)
 			if errors.Is(err, fs.ErrNotExist) {
