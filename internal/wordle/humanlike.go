@@ -7,17 +7,18 @@ import (
 	"slices"
 )
 
-// Solver plays like a decent human rather than an optimiser. Bots give
-// themselves away in a few ways, and this avoids each one:
-//   - Obscure "optimal" words (SOARE, TARSE): every guess is a common answer word.
-//   - Probes that ignore known letters: guesses fit every earlier hint
-//     (hard-mode style), apart from the occasional near-miss below.
-//   - The same opener every day: openers rotate through popular human picks.
-//   - Flawless play: now and then, with guesses to spare, it slips like a
-//     person, reusing a ruled-out letter or a yellow in the same spot.
-//   - Suspiciously consistent 2s and 3s: a finishing turn is drawn from a
-//     human-like distribution. When ahead of it the solver spends turns on
-//     elimination words or near-misses instead of winning early.
+// Solver models how a person plays, rather than optimising; the
+// assumptions are documented in docs/human-model.md:
+//   - Vocabulary: every guess is a common answer word, chosen with a bias
+//     towards familiar words.
+//   - Fitting guesses: guesses fit every earlier clue (Hard Mode style),
+//     apart from words that split a group like _OUND, and the slips below.
+//   - Openers: a few popular first words, or a profile's two favourites.
+//   - Slips: now and then, with guesses to spare, it reuses a ruled-out
+//     letter or puts a yellow back in the same spot.
+//   - Pace: a finishing turn is drawn from rough human weights. While ahead
+//     of it the solver plays elimination words or near-misses, as a person
+//     who is not yet sure might.
 type Solver struct {
 	Target int
 	Max    int // must solve within this many guesses
@@ -49,7 +50,8 @@ var StrongOpeners = []string{
 	"later", "crane", "train",
 }
 
-// finishWeights is roughly how often a regular player finishes on each turn.
+// finishWeights is a hand-set guess at how often a regular player finishes
+// on each turn; docs/human-model.md compares the result with reported data.
 var finishWeights = map[int]float64{2: 0.04, 3: 0.27, 4: 0.40, 5: 0.22, 6: 0.07}
 
 // Above this many candidates, rank guesses against a sample to stay fast.

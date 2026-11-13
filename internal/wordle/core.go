@@ -1,4 +1,5 @@
-// Package wordle scores guesses and picks human-looking next moves.
+// Package wordle scores guesses, compares guess strategies and models how
+// people play.
 package wordle
 
 import (

@@ -243,3 +243,9 @@ func OpenerStats(word string) Split {
 	}
 	return Split{entropy(&b, len(Answers)), meanLeft(&b, len(Answers)), worstLeft(&b)}
 }
+
+// InAnswers reports whether w is on the answer list the strategies use.
+func InAnswers(w string) bool {
+	_, ok := wordIndex[w]
+	return ok
+}
