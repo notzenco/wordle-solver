@@ -45,3 +45,14 @@ func TestGame(t *testing.T) {
 		t.Fatal(r)
 	}
 }
+
+func TestParseAcceptsFencedJSON(t *testing.T) {
+	for _, reply := range []string{"```json\n{\n  \"guess\": \"AUDIO\"\n}\n```", "```\n{\"guess\":\"audio\"}\n```", "`audio`"} {
+		if g, err := Parse(reply); err != nil || g != "audio" {
+			t.Errorf("Parse(%q) = %q, %v", reply, g, err)
+		}
+	}
+	if _, err := Parse("```json\n{\"guess\": \"audio\", \"also\": \"crane\"}\n``` and crane"); err == nil {
+		t.Error("text outside the fence was accepted")
+	}
+}

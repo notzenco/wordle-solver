@@ -52,8 +52,14 @@ func SplitModel(s string) (string, string, error) {
 
 var word = regexp.MustCompile(`^[a-z]{5}$`)
 
+var fence = regexp.MustCompile("(?s)^```[a-zA-Z]*\\s*\\n(.*?)\\n?\\s*```$")
+
 func Parse(s string) (string, error) {
 	s = strings.TrimSpace(s)
+	// Many chat models wrap JSON in a Markdown code fence despite instructions.
+	if m := fence.FindStringSubmatch(s); m != nil {
+		s = strings.TrimSpace(m[1])
+	}
 	if strings.HasPrefix(s, "{") {
 		var r struct {
 			Guess string `json:"guess"`
