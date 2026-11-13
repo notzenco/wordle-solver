@@ -22,7 +22,10 @@ type configFile struct {
 	Settings  map[string]string   `json:"settings,omitempty"`
 }
 
-func configPath() (string, error) { d, e := player.Dir(); return filepath.Join(d, "config.json"), e }
+func configPath() (string, error) {
+	d, e := player.Dir()
+	return filepath.Join(d, player.ConfigFile), e
+}
 func loadConfig() (configFile, error) {
 	c := configFile{Settings: map[string]string{}}
 	p, e := configPath()
