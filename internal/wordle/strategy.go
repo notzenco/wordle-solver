@@ -249,3 +249,29 @@ func InAnswers(w string) bool {
 	_, ok := wordIndex[w]
 	return ok
 }
+
+// Suggest picks the strategy's next guess for a game in progress, using only
+// the clues in history, which may include guesses outside the answer list.
+// When the clues rule out every listed answer, as for newer answers, it
+// suggests the most familiar valid word that still fits.
+func (st Strategy) Suggest(history []Turn, hard bool) (string, bool) {
+	p := &position{history: history, hard: hard, max: 6}
+	for i, a := range Answers {
+		if len(Filter([]string{a}, history)) == 1 {
+			p.cands = append(p.cands, i)
+		}
+	}
+	if len(p.cands) > 0 {
+		return Answers[st.next(p)], true
+	}
+	best, bestScore := "", -1.0
+	for _, w := range Filter(ValidWords(), history) {
+		if hard && !HardValid(w, history) {
+			continue
+		}
+		if f := familiarity(w); f > bestScore {
+			best, bestScore = w, f
+		}
+	}
+	return best, best != ""
+}

@@ -152,3 +152,39 @@ func TestOpenerStats(t *testing.T) {
 		t.Errorf("OpenerStats(%s) = %+v is out of range", opener, got)
 	}
 }
+
+func TestSuggestContinuesAGameInProgress(t *testing.T) {
+	st, _ := StrategyByName("entropy")
+	// A first guess outside the answer list, as a person might play.
+	history := []Turn{{Guess: "aahed", Pattern: Score("aahed", "crazy")}}
+	for len(history) < 6 && history[len(history)-1].Pattern != Solved {
+		g, ok := st.Suggest(history, false)
+		if !ok {
+			t.Fatal("no suggestion")
+		}
+		if len(Filter([]string{"crazy"}, append(history, Turn{g, Score(g, "crazy")}))) != 1 {
+			t.Fatalf("suggestion %s lost the answer", g)
+		}
+		history = append(history, Turn{g, Score(g, "crazy")})
+	}
+	if history[len(history)-1].Pattern != Solved {
+		t.Fatalf("not solved: %v", history)
+	}
+}
+
+func TestSuggestFindsAnswersMissingFromTheList(t *testing.T) {
+	st, _ := StrategyByName("entropy")
+	history := []Turn{}
+	answer := "moxie"
+	for range 6 {
+		g, ok := st.Suggest(history, false)
+		if !ok {
+			t.Fatalf("no suggestion after %v", history)
+		}
+		history = append(history, Turn{g, Score(g, answer)})
+		if history[len(history)-1].Pattern == Solved {
+			return
+		}
+	}
+	t.Fatalf("not solved: %v", history)
+}
