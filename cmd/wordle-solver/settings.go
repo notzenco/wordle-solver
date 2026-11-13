@@ -208,7 +208,7 @@ func settingsCommand(c *cmdCtx) error {
 		return usageError("--all only applies to reset")
 	}
 	// Several settings share an option name across commands (eval.model and
-	// play.model are both --model), so this listing names flags by key.
+	// model are both --model), so this listing names flags by key.
 	opts := []*option{}
 	for _, o := range settingOptions() {
 		byKey := *o

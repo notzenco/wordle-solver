@@ -55,7 +55,11 @@ var allOptions = []option{
 	{"y", "y", "", "false", "bool", "delete without asking", false},
 	{"force", "force", "", "false", "bool", "reinstall even when already up to date", false},
 
-	{"play.model", "model", "PROVIDER/MODEL", "", "string", "take suggestions from this model instead of the built-in player; decision models such as Clef choose from the words that fit", true},
+	{"by", "by", "APPROACH", "human", "string", "human (the human-like player), solver (the entropy strategy, from the colours alone) or model (a model through the eval harness, from the colours alone)", true},
+	{"model", "model", "PROVIDER/MODEL", "", "string", "model for --by model; decision models such as Clef choose from the words that fit", true},
+	{"random", "random", "", "false", "bool", "use a random answer for practice instead of a published puzzle (no network, not saved)", false},
+	{"manual", "manual", "", "false", "bool", "type the colours yourself, as when playing on the website; no answer is looked up", false},
+	{"mine", "mine", "", "false", "bool", "show the games you played yourself instead of the human-like player's", false},
 
 	{"eval.model", "model", "PROVIDER/MODEL", "", "string", "model to evaluate; the provider is the text before the first slash", true},
 	{"eval.games", "games", "N", "10", "uint", "number of games", true},
@@ -99,27 +103,48 @@ type command struct {
 var solverOptions = []string{"max", "target", "hard", "sloppy", "copy", "seed"}
 
 var commands = []*command{
-	{name: "auto", group: "Play", args: "[--date YYYY-MM-DD | --id N | --from N [--to M]]",
-		summary: "Solve a published puzzle by itself (the default command)",
-		help: "Looks up the day's answer from the publisher's public daily-puzzle endpoint, then plays a\n" +
-			"normal game against it using only the colours each guess earns. The answer is used only to\n" +
-			"score guesses. Games are saved, so rerunning a day shows the recorded game.",
-		options:  append([]string{"date", "id", "from", "to", "fresh", "dry"}, solverOptions...),
-		examples: []string{"wordle-solver", "wordle-solver auto --date 2026-11-12", "wordle-solver auto --from 1900 --to 1910"},
-		run:      runAuto},
-	{name: "play", group: "Play", summary: "Suggest guesses while you play",
-		help: "Suggests a guess each turn. Type the colours the game showed as g/y/b (or 2/1/0), or\n" +
-			"'word pattern' to record a different word, for example 'crane bygbb'. With --model, a\n" +
-			"model suggests each guess instead; when its reply is unusable, the built-in suggestion\n" +
-			"is shown and labelled.",
-		options:  append([]string{"play.model", "dry"}, solverOptions...),
-		examples: []string{"wordle-solver play", "wordle-solver play --hard", "wordle-solver play --model omlx/clef-flash-4bit"},
+	{name: "play", group: "Play", args: "[--date YYYY-MM-DD | --id N | --random]",
+		summary: "Play a puzzle yourself, with coloured tiles and no hints",
+		help: "Looks up the day's answer, then you type each guess and see its colours. Words must be in\n" +
+			"the word list. Published puzzles go into your own history ('stats --mine'), kept apart from\n" +
+			"the human-like player's games.",
+		options:  []string{"date", "id", "random", "hard", "dry"},
+		examples: []string{"wordle-solver play", "wordle-solver play --random --hard", "wordle-solver play --date 2026-11-12"},
 		run:      runPlay},
+	{name: "assist", group: "Play", args: "[--by human|solver|model] [--manual]",
+		summary: "Suggest each next word while you play, starting from your own first word",
+		help: "You type each word you played; it shows the colours and suggests the next word, until the\n" +
+			"puzzle is solved. By default the answer is looked up so the colours fill in; with --manual\n" +
+			"you type the colours from the website instead. The suggestions come from:\n" +
+			"  human    the human-like player (default)\n" +
+			"  solver   the entropy strategy, the best in the benchmark\n" +
+			"  model    a language or decision model such as Clef\n" +
+			"Every approach suggests from the colours alone, never from the answer.",
+		options: append([]string{"by", "model", "manual", "date", "id", "random"}, solverOptions...),
+		examples: []string{"wordle-solver assist", "wordle-solver assist --by solver --manual",
+			"wordle-solver assist --by model --model omlx/clef-flash-4bit"},
+		run: runAssist},
+	{name: "auto", group: "Play", args: "[--by human|solver|model] [--date YYYY-MM-DD | --id N | --from N [--to M]]",
+		summary: "Solve a puzzle by itself (the default command)",
+		help: "Looks up the answer from the publisher's public daily-puzzle endpoint and plays the puzzle.\n" +
+			"Every approach chooses guesses from the colours alone; the answer only scores them.\n" +
+			"  human    the human-like player plays a game a person might, with its habits and\n" +
+			"           occasional slips; each run draws a new seed, shown so --seed can replay it.\n" +
+			"           Games are saved to its history. (default)\n" +
+			"  solver   the entropy strategy, the best in the benchmark\n" +
+			"  model    a model through the eval harness; it never sees the answer, and unusable\n" +
+			"           replies waste a turn\n" +
+			"Only human games are saved; --from and --to need --by human.",
+		options: append([]string{"by", "model", "date", "id", "random", "from", "to", "fresh", "dry"}, solverOptions...),
+		examples: []string{"wordle-solver", "wordle-solver auto --by solver", "wordle-solver auto --by model --model omlx/clef-flash-4bit",
+			"wordle-solver auto --date 2026-11-12", "wordle-solver auto --from 1900 --to 1910"},
+		run: runAuto},
 	{name: "sim", group: "Play", args: "WORD", summary: "Watch the solver play a known answer",
 		options:  solverOptions,
 		examples: []string{"wordle-solver sim crazy", "wordle-solver sim crazy --hard --seed 1"},
 		run:      runSim},
-	{name: "stats", group: "Play", summary: "Show statistics for your saved games", run: runStats},
+	{name: "stats", group: "Play", summary: "Show statistics for saved games", options: []string{"mine"},
+		examples: []string{"wordle-solver stats", "wordle-solver stats --mine"}, run: runStats},
 	{name: "bench", group: "Analyse", summary: "Benchmark the player model, or compare guess strategies",
 		help:     "Without --strategy, plays every answer with the human-like player model. With --strategy,\nplays every answer with that strategy; 'all' runs each in normal and Hard Mode.",
 		options:  append([]string{"strategy", "n"}, solverOptions...),
@@ -192,9 +217,13 @@ type cmdCtx struct {
 	args    []string
 	config  configFile
 	sources map[string]string
+	seed    uint64 // the seed in use, set by solver
 }
 
 func (c *cmdCtx) get(id string) string {
+	if optionByID(id) == nil {
+		panic("unknown option " + id)
+	}
 	f := c.fs.Lookup(optionByID(id).flag)
 	if f == nil {
 		return ""

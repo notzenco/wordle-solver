@@ -28,7 +28,8 @@ func main() {
 	os.Exit(runCLI(os.Args[1:], os.Stdout, os.Stderr))
 }
 
-// solver reads and checks the options shared by the commands that play.
+// solver reads and checks the options shared by the commands that play. A
+// zero --seed draws a new one, kept in c.seed so it can be shown.
 func (c *cmdCtx) solver() (options, *rand.Rand, error) {
 	o := options{target: c.int("target"), max: c.int("max"), sloppy: c.float("sloppy"), hard: c.bool("hard"), copy: c.bool("copy")}
 	switch {
@@ -39,11 +40,11 @@ func (c *cmdCtx) solver() (options, *rand.Rand, error) {
 	case o.sloppy < 0 || o.sloppy > 1:
 		return o, nil, usageError("--sloppy must be between 0 and 1")
 	}
-	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
-	if seed := c.uint("seed"); seed != 0 {
-		rng = rand.New(rand.NewPCG(seed, seed))
+	c.seed = c.uint("seed")
+	for c.seed == 0 {
+		c.seed = rand.Uint64() % 1_000_000_000 // short enough to retype
 	}
-	return o, rng, nil
+	return o, rand.New(rand.NewPCG(c.seed, c.seed)), nil
 }
 
 func (c *cmdCtx) noArgs() error {
@@ -61,13 +62,17 @@ func runAuto(c *cmdCtx) error {
 	if err != nil {
 		return err
 	}
-	date, id, from, to := c.get("date"), c.int("id"), c.int("from"), c.int("to")
-	if date != "" && id >= 0 {
-		return usageError("use --date or --id, not both")
+	by, m, err := c.approach()
+	if err != nil {
+		return err
 	}
+	from, to := c.int("from"), c.int("to")
 	if from >= 0 || to >= 0 {
-		if date != "" || id >= 0 || c.bool("dry") {
-			return usageError("--from and --to can't be combined with --date, --id or --dry")
+		if by != "human" {
+			return usageError("--from and --to need --by human")
+		}
+		if c.get("date") != "" || c.int("id") >= 0 || c.bool("dry") || c.bool("random") {
+			return usageError("--from and --to can't be combined with --date, --id, --random or --dry")
 		}
 		last := to
 		if last < 0 {
@@ -82,6 +87,28 @@ func runAuto(c *cmdCtx) error {
 		}
 		autoRange(rng, opts, loadStore(rng), numbers, c.bool("fresh"))
 		return nil
+	}
+	if by != "human" {
+		p, err := c.puzzle(rng)
+		if err != nil {
+			return err
+		}
+		autoClues(by, m, p, opts)
+		return nil
+	}
+	if c.bool("random") {
+		p, err := c.puzzle(rng)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "%s\n\n", p.title())
+		printGame("", newSolver(rng, opts, nil).Solve(p.answer), opts.copy)
+		fmt.Fprintf(stdout, "\nSeed %d; --seed %d replays this game. Practice games are not saved.\n", c.seed, c.seed)
+		return nil
+	}
+	date, id := c.get("date"), c.int("id")
+	if date != "" && id >= 0 {
+		return usageError("use --date or --id, not both")
 	}
 	day := time.Now()
 	if id >= 0 {
@@ -98,7 +125,9 @@ func runAuto(c *cmdCtx) error {
 	if !c.bool("dry") {
 		store = loadStore(rng)
 	}
-	auto(rng, opts, store, day, c.bool("fresh"))
+	if auto(rng, opts, store, day, c.bool("fresh")) {
+		fmt.Fprintf(stdout, "\nSeed %d; --seed %d --fresh replays this game.\n", c.seed, c.seed)
+	}
 	return nil
 }
 
@@ -106,23 +135,46 @@ func runPlay(c *cmdCtx) error {
 	if err := c.noArgs(); err != nil {
 		return err
 	}
+	p, err := c.puzzle(rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64())))
+	if err != nil {
+		return err
+	}
+	return playYourself(p, c.bool("hard"), !c.bool("dry"))
+}
+
+func runAssist(c *cmdCtx) error {
+	if err := c.noArgs(); err != nil {
+		return err
+	}
 	opts, rng, err := c.solver()
 	if err != nil {
 		return err
 	}
-	var m *modelSuggester
-	if spec := c.get("play.model"); spec != "" {
-		p, _, model, err := resolveModel(c.config, spec, "", "")
-		if err != nil {
-			return err
+	by, m, err := c.approach()
+	if err != nil {
+		return err
+	}
+	var a advisor
+	switch by {
+	case "human":
+		a = &humanAdvisor{newSolver(rng, opts, nil)}
+	case "solver":
+		a = newSolverAdvisor()
+	default:
+		a = m
+	}
+	if c.bool("manual") {
+		if c.get("date") != "" || c.int("id") >= 0 || c.bool("random") {
+			return usageError("--manual looks nothing up, so it can't be combined with --date, --id or --random")
 		}
-		m = newModelSuggester(p, model, rng)
+		assist(a, nil, opts.hard)
+		return nil
 	}
-	var store *player.Store
-	if !c.bool("dry") {
-		store = loadStore(rng)
+	p, err := c.puzzle(rng)
+	if err != nil {
+		return err
 	}
-	play(newSolver(rng, opts, store), opts, m)
+	assist(a, &p, opts.hard)
 	return nil
 }
 
@@ -162,7 +214,20 @@ func runStats(c *cmdCtx) error {
 	if err := c.noArgs(); err != nil {
 		return err
 	}
-	printStats(loadStore(rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))))
+	today := wordle.NumberForDate(time.Now())
+	if c.bool("mine") {
+		_, games, err := ownGames()
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(stdout, "Your own games ('wordle-solver play'):")
+		fmt.Fprintln(stdout)
+		printStats(player.StatsFor(games, today))
+		return nil
+	}
+	fmt.Fprintln(stdout, "The human-like player's games ('wordle-solver auto'); --mine shows yours:")
+	fmt.Fprintln(stdout)
+	printStats(loadStore(rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))).Stats(today))
 	return nil
 }
 

@@ -90,23 +90,40 @@ from a checkout needs `-force`).
 
 ```sh
 wordle-solver help                    # every command; 'help COMMAND' or 'COMMAND --help' for its options
-wordle-solver play                    # suggests guesses while you play
-wordle-solver sim crazy               # watch it solve a given answer
+wordle-solver play                    # play today's puzzle yourself: coloured tiles, no hints
+wordle-solver play --random           # practise on a random answer (offline, not saved)
+wordle-solver assist                  # type your own words; it fills in the colours and suggests the next
+wordle-solver assist --manual         # the same while playing on the website: you type the colours too
+wordle-solver                         # solve today's puzzle by itself with the human-like player
+wordle-solver auto --by solver        # ... with the entropy strategy
+wordle-solver auto --by model --model omlx/clef-flash-4bit   # ... with a model, through the eval harness
+wordle-solver auto --date 2026-11-12  # another day's puzzle (or --id N, or --from N --to M)
+wordle-solver sim crazy               # watch the human-like player solve a given answer
 wordle-solver bench --strategy all    # compare the five strategies
-wordle-solver bench --strategy entropy --hard
-wordle-solver bench                   # results of the human-like model over every answer
-wordle-solver                         # solve today's published puzzle (see Answer data)
-wordle-solver auto --date 2026-11-12  # solve another day's puzzle
-wordle-solver auto --id 0             # solve by puzzle number (0 is 2021-06-19)
-wordle-solver auto --from 1900 --to 1910
-wordle-solver stats                   # statistics for the games you have saved
+wordle-solver stats                   # the human-like player's record; --mine for your own games
 wordle-solver sync                    # cache every past answer (a few minutes)
 wordle-solver clean                   # delete the saved profile, games and answers
 wordle-solver settings                # saved defaults and where each value comes from
 ```
 
+### Approaches
+
+`auto` and `assist` take `--by`:
+
+| Approach | Chooses guesses with | Notes |
+| --- | --- | --- |
+| `human` (default) | the human-like player model | habits and occasional slips; each run draws a new seed, printed so `--seed` replays it |
+| `solver` | the entropy strategy | the best in the benchmark |
+| `model` | a model given with `--model`, through the [eval harness](docs/eval.md) | chat models reply with a word; decision models such as Clef choose from up to 64 words that fit |
+
+Every approach chooses from the colours alone. The answer is looked up only
+to score guesses, and a model never sees it. Only the human-like player's
+games are saved, to its own history; games you play with `play` go into a
+separate history shown by `stats --mine`. In a terminal, guesses show as
+coloured tiles; `NO_COLOR=1` or a pipe gives letters and emoji instead.
+
 Each command accepts only its own options, with one or two dashes, before or
-after its arguments. The playing commands (`auto`, `play`, `sim`, `bench`)
+after its arguments. The solving commands (`auto`, `assist`, `sim`, `bench`)
 share these:
 
 | Option | Effect |
@@ -121,17 +138,9 @@ share these:
 Save a default with `wordle-solver settings set max 5`; `wordle-solver help
 settings` lists every key.
 
-In `play`, type the suggested word into the game and enter the colours it
-showed as `g`/`y`/`b` (or `2`/`1`/`0`). To play your own word instead, enter
-`word pattern`, for example `crane bygbb`.
-
-`play --model PROVIDER/MODEL` takes each suggestion from a model instead,
-using the same providers as [model evaluation](docs/eval.md). A decision
-model such as Clef chooses from up to 64 words that fit the clues so far, so
-early guesses come from a random sample of the vocabulary. The top choices
-and their probabilities are shown. If a reply can't be used, the solver's
-own suggestion is shown and labelled. Save a default with
-`wordle-solver settings set play.model omlx/clef-flash-4bit`.
+In `assist`, press Enter on an empty line to play the suggestion. With
+`--manual`, enter the colours the website showed as `g`/`y`/`b` (or
+`2`/`1`/`0`), for example `bygbb`.
 
 ## Evaluating models
 
