@@ -126,7 +126,11 @@ release, and the release workflow attaches binaries for every platform.
 Before 1.0, `feat` commits raise the minor version and `fix` commits the
 patch version.
 
-## What makes it look human
+## Human-like play
+
+`play`, `sim`, `auto` and plain `bench` use a model of how a person plays.
+[docs/human-model.md](docs/human-model.md) describes its assumptions and
+compares its results with results people reported in 2022.
 
 - Guesses come only from the ~2,300 common answer words, plus NYT's newer
   answers once cached. When choosing
@@ -139,8 +143,8 @@ patch version.
   yellow back where it was already yellow, while keeping every green. Slips
   only happen with four or more guesses left, at the default limit of 6.
 - It paces itself towards each game's target turn. When ahead, it spends
-  turns on elimination words or near-misses instead of posting a run of 2s
-  and 3s.
+  turns on elimination words or near-misses, as a person who is not yet
+  sure might.
 
 ## Limits and Hard Mode
 
