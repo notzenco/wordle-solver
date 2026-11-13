@@ -50,6 +50,7 @@ wordle-solver -sloppy 0.4         # slip up more often (default 0.2, 0 = never)
 wordle-solver play                # solve a puzzle with you
 wordle-solver sim crazy           # watch it solve a known answer
 wordle-solver bench               # result distribution over every answer
+wordle-solver bench -strategy all # compare five guess strategies (docs/analysis.md)
 go test ./...                     # about 20 seconds: plays every answer
 ```
 
@@ -107,6 +108,14 @@ kept.
 `-copy` uses `pbcopy` on macOS, `clip` on Windows, and `wl-copy` or `xclip`
 on Linux.
 
+## Strategy comparison
+
+`bench -strategy NAME` plays every answer with one deterministic strategy
+(`entropy`, `expected`, `minimax`, `freq` or `planner`, with `-hard` for
+Hard Mode), and `bench -strategy all` runs them all in both modes. The method,
+results and charts are in [docs/analysis.md](docs/analysis.md);
+`go run ./tools/report` regenerates them.
+
 ## Releases
 
 Versions follow [semantic versioning](https://semver.org) and come from the
@@ -158,6 +167,7 @@ Results over every answer:
 | `internal/wordle` | Scoring, the human-looking solver and the NYT puzzle lookup |
 | `internal/player` | The saved profile, game history, answer cache and statistics |
 | `internal/selfupdate` | The `update` command's download, checksum check and binary swap |
+| `tools/report` | Reruns the strategy benchmark and regenerates docs/analysis.md |
 | `scripts/build-release.sh` | Builds the release archives; CI and the release workflow run it |
 
 ## Data and licence

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 366" width="760" height="366" role="img" aria-labelledby="title desc">
+<title id="title">Runtime per strategy</title><desc id="desc">Bar chart of the time each strategy takes to play every answer, in normal and Hard Mode, with decisions cached by position.</desc>
+<style>
+.surface{fill:#fcfcfb}.ink{fill:#0b0b0b}.ink2{fill:#52514e}.muted{fill:#898781}
+.grid{stroke:#e1e0d9;stroke-width:1}.axis{stroke:#c3c2b7;stroke-width:1}
+.s1{fill:#2a78d6}.s2{fill:#eb6834}.l1{stroke:#2a78d6}.l2{stroke:#eb6834}.ring{stroke:#fcfcfb}
+text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:12px}
+.title{font-size:15px;font-weight:600}.num{font-variant-numeric:tabular-nums}
+@media (prefers-color-scheme:dark){
+.surface{fill:#1a1a19}.ink{fill:#f0efec}.ink2{fill:#c3c2b7}.muted{fill:#898781}
+.grid{stroke:#2c2c2a}.axis{stroke:#383835}
+.s1{fill:#3987e5}.s2{fill:#d95926}.l1{stroke:#3987e5}.l2{stroke:#d95926}.ring{stroke:#1a1a19}}
+</style>
+<rect class="surface" width="760" height="366" rx="8"/>
+<text class="ink title" x="20" y="30">Time to play every answer (decisions cached by position)</text>
+<rect class="s1" x="20" y="48" width="12" height="12" rx="3"/><text class="ink2" x="38" y="58">Normal</text>
+<rect class="s2" x="104" y="48" width="12" height="12" rx="3"/><text class="ink2" x="122" y="58">Hard Mode</text>
+<line class="axis" x1="109.5" x2="109.5" y1="88" y2="344"/>
+<text class="ink" x="20" y="112">entropy</text>
+<path class="s1" d="M110.0 96.0H430.0Q434.0 96.0 434.0 100.0V106.0Q434.0 110.0 430.0 110.0H110.0Z"><title>entropy, normal: 319 ms, 2479 positions decided</title></path>
+<text class="ink2 num" x="440.0" y="107.0">319 ms</text>
+<path class="s2" d="M110.0 112.0H178.3Q182.3 112.0 182.3 116.0V122.0Q182.3 126.0 178.3 126.0H110.0Z"><title>entropy, hard: 71 ms, 2313 positions decided</title></path>
+<text class="ink2 num" x="188.3" y="123.0">71 ms</text>
+<text class="ink" x="20" y="164">expected</text>
+<path class="s1" d="M110.0 148.0H457.6Q461.6 148.0 461.6 152.0V158.0Q461.6 162.0 457.6 162.0H110.0Z"><title>expected, normal: 346 ms, 2494 positions decided</title></path>
+<text class="ink2 num" x="467.6" y="159.0">346 ms</text>
+<path class="s2" d="M110.0 164.0H166.7Q170.7 164.0 170.7 168.0V174.0Q170.7 178.0 166.7 178.0H110.0Z"><title>expected, hard: 60 ms, 2316 positions decided</title></path>
+<text class="ink2 num" x="176.7" y="175.0">60 ms</text>
+<text class="ink" x="20" y="216">minimax</text>
+<path class="s1" d="M110.0 200.0H662.7Q666.7 200.0 666.7 204.0V210.0Q666.7 214.0 662.7 214.0H110.0Z"><title>minimax, normal: 548 ms, 2504 positions decided</title></path>
+<text class="ink2 num" x="672.7" y="211.0">548 ms</text>
+<path class="s2" d="M110.0 216.0H174.9Q178.9 216.0 178.9 220.0V226.0Q178.9 230.0 174.9 230.0H110.0Z"><title>minimax, hard: 68 ms, 2322 positions decided</title></path>
+<text class="ink2 num" x="184.9" y="227.0">68 ms</text>
+<text class="ink" x="20" y="268">freq</text>
+<path class="s1" d="M110.0 252.0H120.7Q124.7 252.0 124.7 256.0V262.0Q124.7 266.0 120.7 266.0H110.0Z"><title>freq, normal: 15 ms, 2293 positions decided</title></path>
+<text class="ink2 num" x="130.7" y="263.0">15 ms</text>
+<path class="s2" d="M110.0 268.0H122.3Q126.3 268.0 126.3 272.0V278.0Q126.3 282.0 122.3 282.0H110.0Z"><title>freq, hard: 16 ms, 2293 positions decided</title></path>
+<text class="ink2 num" x="132.3" y="279.0">16 ms</text>
+<text class="ink" x="20" y="320">planner</text>
+<path class="s1" d="M110.0 304.0H666.0Q670.0 304.0 670.0 308.0V314.0Q670.0 318.0 666.0 318.0H110.0Z"><title>planner, normal: 551 ms, 2392 positions decided</title></path>
+<text class="ink2 num" x="676.0" y="315.0">551 ms</text>
+<path class="s2" d="M110.0 320.0H387.1Q391.1 320.0 391.1 324.0V330.0Q391.1 334.0 387.1 334.0H110.0Z"><title>planner, hard: 277 ms, 2306 positions decided</title></path>
+<text class="ink2 num" x="397.1" y="331.0">277 ms</text>
+</svg>
