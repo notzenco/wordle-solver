@@ -89,7 +89,12 @@ Download the archive for your system from the
 `wordle-solver` (or `wordle-solver.exe`) somewhere on your `PATH`. On
 macOS and Linux the archive also holds `wsolve`, a shorter name for the same
 program; keep it beside `wordle-solver`.
-`checksums.txt` lists each archive's SHA-256. The binaries are not signed:
+`checksums.txt` lists each archive's SHA-256, and in releases after v0.2.0 each archive
+has signed build provenance, so you can check it was built from this
+repository by its release workflow:
+`gh attestation verify wordle-solver_*.tar.gz --repo notzenco/wordle-solver`.
+`update` checks the checksum but not the provenance. The binaries are not
+code-signed:
 on macOS, clear the download quarantine with
 `xattr -d com.apple.quarantine wordle-solver`; on Windows, SmartScreen may
 ask you to confirm the first run.
