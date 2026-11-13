@@ -12,7 +12,13 @@ import (
 	"path/filepath"
 	"slices"
 
-	"wordle-solver/wordle"
+	"github.com/notzenco/wordle-solver/internal/wordle"
+)
+
+const (
+	profileFile = "profile.json"
+	historyFile = "history.json"
+	answersFile = "answers.json"
 )
 
 // Profile is the player's lasting habits.
@@ -55,7 +61,7 @@ func Dir() (string, error) {
 // Load reads the store in dir, creating a new profile with rng on first use.
 func Load(dir string, rng *rand.Rand) (*Store, error) {
 	s := &Store{History: map[int]Game{}, Answers: map[int]string{}, dir: dir}
-	if err := readJSON(filepath.Join(dir, "profile.json"), &s.Profile); err != nil {
+	if err := readJSON(filepath.Join(dir, profileFile), &s.Profile); err != nil {
 		return nil, err
 	}
 	if len(s.Profile.Openers) == 0 {
@@ -64,10 +70,10 @@ func Load(dir string, rng *rand.Rand) (*Store, error) {
 		s.Profile.Openers = []string{wordle.StrongOpeners[perm[0]], wordle.StrongOpeners[perm[1]]}
 		s.Profile.SkipPastAnswers = rng.Float64() < 0.5
 	}
-	if err := readJSON(filepath.Join(dir, "history.json"), &s.History); err != nil {
+	if err := readJSON(filepath.Join(dir, historyFile), &s.History); err != nil {
 		return nil, err
 	}
-	if err := readJSON(filepath.Join(dir, "answers.json"), &s.Answers); err != nil {
+	if err := readJSON(filepath.Join(dir, answersFile), &s.Answers); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -88,13 +94,33 @@ func (s *Store) Save() error {
 	if err := os.MkdirAll(s.dir, 0o755); err != nil {
 		return err
 	}
-	if err := writeJSON(filepath.Join(s.dir, "profile.json"), s.Profile); err != nil {
+	if err := writeJSON(filepath.Join(s.dir, profileFile), s.Profile); err != nil {
 		return err
 	}
-	if err := writeJSON(filepath.Join(s.dir, "history.json"), s.History); err != nil {
+	if err := writeJSON(filepath.Join(s.dir, historyFile), s.History); err != nil {
 		return err
 	}
-	return writeJSON(filepath.Join(s.dir, "answers.json"), s.Answers)
+	return writeJSON(filepath.Join(s.dir, answersFile), s.Answers)
+}
+
+// Clean deletes the files a Store keeps in dir, then dir itself if nothing
+// else is left in it. It removes only files it knows by name, since
+// WORDLE_SOLVER_HOME may point at a folder that holds other things.
+func Clean(dir string) (removed []string, err error) {
+	for _, name := range []string{profileFile, historyFile, answersFile} {
+		for _, p := range []string{filepath.Join(dir, name), filepath.Join(dir, name+".tmp")} {
+			err := os.Remove(p)
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
+			if err != nil {
+				return removed, err
+			}
+			removed = append(removed, p)
+		}
+	}
+	os.Remove(dir) // fails, as intended, while other files remain
+	return removed, nil
 }
 
 // writeJSON replaces path atomically so an interrupted save can't truncate it.

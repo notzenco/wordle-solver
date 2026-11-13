@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"wordle-solver/wordle"
+	"github.com/notzenco/wordle-solver/internal/wordle"
 )
 
 func game(n, turns int) []wordle.Turn {
