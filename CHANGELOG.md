@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.1](https://github.com/notzenco/wordle-solver/compare/v0.2.0...v0.2.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **clean:** delete settings too and name the kept eval transcripts ([7a01743](https://github.com/notzenco/wordle-solver/commit/7a0174321c5377c13ce0d910e9e91da3565781e0))
+* **cli:** redact API keys in model replies shown on screen ([2528acd](https://github.com/notzenco/wordle-solver/commit/2528acd07a1b89253d9fecc1885f15999e7b157b))
+* **cli:** turn on colour handling in Windows consoles ([6b7d171](https://github.com/notzenco/wordle-solver/commit/6b7d1712de8213d30cf6456374516e263a3e8f1a))
+* **player:** merge overlapping saves under a lock and keep files private ([f16ba9c](https://github.com/notzenco/wordle-solver/commit/f16ba9c27a669dce99e2c35c4252c4cc6eee61d4))
+* reject answers and saved words that aren't five letters a-z ([7f1870e](https://github.com/notzenco/wordle-solver/commit/7f1870e70fefad599c68331beac96a9223a451b7))
+* **selfupdate:** cap the unpacked binary and write it to a unique file ([d9b57b3](https://github.com/notzenco/wordle-solver/commit/d9b57b39c8d9101d0ef3011c664366059b69e50c))
+* **settings:** validate the approach and let settings repair bad values ([df15fd5](https://github.com/notzenco/wordle-solver/commit/df15fd5847804a2bb4ffd2955f8d5b3d4b8a3b99))
+
 ## [0.2.0](https://github.com/notzenco/wordle-solver/compare/v0.1.0...v0.2.0) (2026-11-13)
 
 
