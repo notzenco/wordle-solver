@@ -58,10 +58,21 @@ func loadConfig() (configFile, error) {
 	}
 	for k, v := range c.Settings {
 		if err := validateSetting(k, v); err != nil {
-			return c, err
+			return c, badSetting{k, err}
 		}
 	}
 	return c, nil
+}
+
+// badSetting is a saved setting that fails validation. The settings
+// command can still load the file, so set and reset can repair it.
+type badSetting struct {
+	key string
+	err error
+}
+
+func (b badSetting) Error() string {
+	return fmt.Sprintf("saved setting %v; fix it with 'wordle-solver settings reset %s'", b.err, b.key)
 }
 func saveConfig(c configFile) error {
 	p, e := configPath()
@@ -97,6 +108,10 @@ func validateSetting(k, v string) error {
 	switch k {
 	case "eval.kind":
 		return validKind(v)
+	case "by":
+		if v != "human" && v != "solver" && v != "model" {
+			return bad()
+		}
 	case "eval.options":
 		if v != "" && v != "free" && v != "candidates" {
 			return bad()

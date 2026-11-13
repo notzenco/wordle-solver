@@ -4,6 +4,9 @@ import (
 	"flag"
 	"github.com/notzenco/wordle-solver/internal/player"
 	"io"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -67,5 +70,30 @@ func TestSavedDefaultsAndSet(t *testing.T) {
 	src, e = applySettings(fs, []*option{optionByID("max")}, c)
 	if e != nil || *v != 4 || src["max"] != "config" {
 		t.Fatal(src, e, *v)
+	}
+}
+
+func TestSettingsRejectsAnUnknownApproach(t *testing.T) {
+	t.Setenv("WORDLE_SOLVER_HOME", t.TempDir())
+	if code := runCLI([]string{"settings", "set", "by", "bogus"}, io.Discard, io.Discard); code == 0 {
+		t.Fatal("by=bogus was saved")
+	}
+}
+
+func TestSettingsCanRepairABadSavedValue(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("WORDLE_SOLVER_HOME", home)
+	if err := os.WriteFile(filepath.Join(home, "config.json"), []byte(`{"settings":{"max":"2"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var errOut strings.Builder
+	if code := runCLI([]string{"sim", "crane"}, io.Discard, &errOut); code == 0 || !strings.Contains(errOut.String(), "settings reset max") {
+		t.Fatalf("bad saved value: code %d, %q", code, errOut.String())
+	}
+	if code := runCLI([]string{"settings", "reset", "max"}, io.Discard, io.Discard); code != 0 {
+		t.Fatal("reset could not repair the bad value")
+	}
+	if code := runCLI([]string{"sim", "crane"}, io.Discard, io.Discard); code != 0 {
+		t.Fatal("still broken after reset")
 	}
 }

@@ -341,8 +341,18 @@ func runCLI(args []string, out, errOut io.Writer) int {
 	}
 	ctx := &cmdCtx{cmd: cmd, fs: fs, args: positional}
 	if ctx.config, err = loadConfig(); err != nil {
-		fmt.Fprintf(errOut, "wordle-solver: %v\n", err)
-		return 1
+		var bad badSetting
+		if !errors.As(err, &bad) || cmd.name != "settings" {
+			fmt.Fprintf(errOut, "wordle-solver: %v\n", err)
+			return 1
+		}
+		// Let settings repair the file: drop bad values and say so.
+		for k, v := range ctx.config.Settings {
+			if validateSetting(k, v) != nil {
+				fmt.Fprintf(errOut, "Ignoring saved %s = %q, which is not valid.\n", k, v)
+				delete(ctx.config.Settings, k)
+			}
+		}
 	}
 	if ctx.sources, err = applySettings(fs, opts, ctx.config); err != nil {
 		var u usageError
