@@ -4,6 +4,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -114,6 +115,47 @@ func TestLoadReplacesMalformedOpeners(t *testing.T) {
 	for _, o := range s.Profile.Openers {
 		if !wordle.IsWord(o) {
 			t.Fatalf("kept opener %q", o)
+		}
+	}
+}
+
+func TestOverlappingSavesKeepEachOthersGames(t *testing.T) {
+	dir := t.TempDir()
+	a, _ := Load(dir, rand.New(rand.NewPCG(1, 1)))
+	b, _ := Load(dir, rand.New(rand.NewPCG(2, 2)))
+	a.Record(1, "2021-06-20", []wordle.Turn{{Guess: "crane", Pattern: wordle.Solved}})
+	a.AddAnswer(1, "crane")
+	b.Record(2, "2021-06-21", []wordle.Turn{{Guess: "slate", Pattern: wordle.Solved}})
+	b.AddAnswer(2, "slate")
+	if err := a.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Save(); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Load(dir, rand.New(rand.NewPCG(3, 3)))
+	if err != nil || len(s.History) != 2 || len(s.Answers) != 2 {
+		t.Fatalf("history %v, answers %v, err %v", s.History, s.Answers, err)
+	}
+	mine := map[int]Game{1: {Date: "2021-06-20", Turns: []wordle.Turn{{Guess: "crane", Pattern: wordle.Solved}}}}
+	other := map[int]Game{2: {Date: "2021-06-21", Turns: []wordle.Turn{{Guess: "slate", Pattern: wordle.Solved}}}}
+	if err := SaveMine(dir, mine); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveMine(dir, other); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := LoadMine(dir); len(got) != 2 {
+		t.Fatalf("own games: %v", got)
+	}
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		info, _ := e.Info()
+		if strings.HasSuffix(e.Name(), ".tmp") || strings.HasPrefix(e.Name(), ".") {
+			t.Errorf("left %s behind", e.Name())
+		}
+		if runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
+			t.Errorf("%s is readable by others: %v", e.Name(), info.Mode().Perm())
 		}
 	}
 }

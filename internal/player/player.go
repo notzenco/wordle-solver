@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/notzenco/wordle-solver/internal/wordle"
 )
@@ -122,9 +123,31 @@ func readJSON(path string, v any) error {
 	return json.Unmarshal(data, v)
 }
 
+// Save writes the store. It re-reads the saved files under a lock and adds
+// what this store holds, so two overlapping runs keep each other's games.
 func (s *Store) Save() error {
-	if err := os.MkdirAll(s.dir, 0o755); err != nil {
+	unlock, err := lock(s.dir)
+	if err != nil {
 		return err
+	}
+	defer unlock()
+	var history map[int]Game
+	var answers map[int]string
+	if err := readJSON(filepath.Join(s.dir, historyFile), &history); err != nil {
+		return err
+	}
+	if err := readJSON(filepath.Join(s.dir, answersFile), &answers); err != nil {
+		return err
+	}
+	for n, g := range history {
+		if _, ok := s.History[n]; !ok {
+			s.History[n] = g
+		}
+	}
+	for n, a := range answers {
+		if _, ok := s.Answers[n]; !ok {
+			s.Answers[n] = a
+		}
 	}
 	if err := writeJSON(filepath.Join(s.dir, profileFile), s.Profile); err != nil {
 		return err
@@ -135,12 +158,44 @@ func (s *Store) Save() error {
 	return writeJSON(filepath.Join(s.dir, answersFile), s.Answers)
 }
 
+const lockFile = ".lock"
+
+// lock takes dir's lock file, waiting up to ten seconds for another run to
+// finish saving. A lock older than a minute is from a run that died, so it
+// is taken over.
+func lock(dir string) (func(), error) {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, err
+	}
+	p := filepath.Join(dir, lockFile)
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if err == nil {
+			f.Close()
+			return func() { os.Remove(p) }, nil
+		}
+		if !errors.Is(err, fs.ErrExist) {
+			return nil, err
+		}
+		if info, err := os.Stat(p); err == nil && time.Since(info.ModTime()) > time.Minute {
+			os.Remove(p)
+			continue
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("another wordle-solver run is saving to %s; if none is, delete %s", dir, p)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 // Clean deletes the files a Store keeps in dir, then dir itself if nothing
 // else is left in it. It removes only files it knows by name, since
 // WORDLE_SOLVER_HOME may point at a folder that holds other things.
 func Clean(dir string) (removed []string, err error) {
-	for _, name := range []string{profileFile, historyFile, answersFile, mineFile, ConfigFile} {
-		for _, p := range []string{filepath.Join(dir, name), filepath.Join(dir, name+".tmp")} {
+	for _, name := range []string{profileFile, historyFile, answersFile, mineFile, ConfigFile, lockFile} {
+		temps, _ := filepath.Glob(filepath.Join(dir, name+"-*.tmp"))
+		for _, p := range append([]string{filepath.Join(dir, name), filepath.Join(dir, name+".tmp")}, temps...) {
 			err := os.Remove(p)
 			if errors.Is(err, fs.ErrNotExist) {
 				continue
@@ -155,17 +210,26 @@ func Clean(dir string) (removed []string, err error) {
 	return removed, nil
 }
 
-// writeJSON replaces path atomically so an interrupted save can't truncate it.
+// writeJSON replaces path atomically so an interrupted save can't truncate
+// it. The temporary file has a unique name, readable only by the owner.
 func writeJSON(path string, v any) error {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, append(data, '\n'), 0o644); err != nil {
+	f, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+"-*.tmp")
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	defer os.Remove(f.Name())
+	if _, err := f.Write(append(data, '\n')); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(f.Name(), path)
 }
 
 func (s *Store) Game(number int) (Game, bool) {
