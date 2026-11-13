@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.2.0](https://github.com/notzenco/wordle-solver/compare/v0.1.0...v0.2.0) (2026-11-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** play no longer suggests guesses; use assist --manual for the previous behaviour. play --model is replaced by assist --by model --model, and the play.model setting by model.
+* **cli:** options that do not belong to a command are now rejected instead of ignored (for example `play --strategy`). Eval writes transcripts to the data folder unless --out is given. The providers and settings listings gained header rows, so scripts parsing them must skip the first line.
+
+### Features
+
+* **auto:** reject invalid model words without using a turn ([0ee04a1](https://github.com/notzenco/wordle-solver/commit/0ee04a1f976b8369ff9cd8fec263371a6f1e86ea))
+* **cli:** add play, assist and auto approaches ([12b1ee6](https://github.com/notzenco/wordle-solver/commit/12b1ee65d4c47a169f14bb36e96d14f5a7f356a3))
+* **cli:** give each command its own options and help ([5fe2023](https://github.com/notzenco/wordle-solver/commit/5fe2023e64fb16be597a35c50470992490ec0175))
+* **eval:** score model games against entropy with transcripts ([f2a52f6](https://github.com/notzenco/wordle-solver/commit/f2a52f6bf380921a51b664c7c9053a8c53d7509a))
+* **eval:** support systemone decisions and candidate scoring ([6653136](https://github.com/notzenco/wordle-solver/commit/66531364f5aeb3c8499a32022d61e89aa41dfd96))
+* **play:** take suggestions from a model with --model ([d76cbd8](https://github.com/notzenco/wordle-solver/commit/d76cbd8d0ffdc1c5f71abd60530f14fac4f9be6b))
+* **providers:** configure compatible servers and list models ([351d25e](https://github.com/notzenco/wordle-solver/commit/351d25ea4f08e1d2b99585751854aa31a6cbb388))
+* **release:** ship wsolve as a short name for wordle-solver ([e124bec](https://github.com/notzenco/wordle-solver/commit/e124bec78c174e189fe8efde2557f5ab439da7f3))
+* **settings:** persist command defaults with source precedence ([2d17b71](https://github.com/notzenco/wordle-solver/commit/2d17b7190c9edb84c79bcaa59c3f819570eb59f5))
+* **wordle:** suggest the next guess for any game in progress ([209972f](https://github.com/notzenco/wordle-solver/commit/209972fb46d091eeda318f8d31da6866398e9cd2))
+
+
+### Bug Fixes
+
+* **config:** validate saved providers and redact echoed keys ([3a75df6](https://github.com/notzenco/wordle-solver/commit/3a75df6068a9c0495261b34b89f53cc2cba78f41))
+* **eval:** accept guesses inside a markdown code fence ([308a882](https://github.com/notzenco/wordle-solver/commit/308a8826725cf0dd16636276ce257aa1cf14e85a))
+* **eval:** format terminal summaries for readable results ([71810f2](https://github.com/notzenco/wordle-solver/commit/71810f2d16caf2a139d1c711d87424a845632d92))
+* **eval:** weight the frequency baseline by familiarity ([41dbf17](https://github.com/notzenco/wordle-solver/commit/41dbf17504b2ff487ba6486491c68b40cad5c520))
+
 ## 0.1.0 (2026-11-13)
 
 
