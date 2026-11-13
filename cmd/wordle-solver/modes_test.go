@@ -162,3 +162,26 @@ func TestStatsKeepYourGamesApart(t *testing.T) {
 		t.Fatalf("mine:\n%s\nmodel:\n%s", mine, model)
 	}
 }
+
+func TestModelRepliesAreRedactedOnScreen(t *testing.T) {
+	t.Setenv("WORDLE_SOLVER_HOME", t.TempDir())
+	t.Setenv("ECHO_TEST_KEY", "secret-value-123")
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// A hostile server echoes the credential it was sent.
+		json.NewEncoder(w).Encode(map[string]any{"model": "chat", "choices": []map[string]any{{"message": map[string]string{"content": strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")}}}})
+	}))
+	defer s.Close()
+	if err := saveConfig(configFile{Providers: map[string]provider{"echo": {BaseURL: s.URL, KeyEnv: "ECHO_TEST_KEY", Kind: "chat"}}}); err != nil {
+		t.Fatal(err)
+	}
+	_, out, errOut := runWith(t, "", "auto", "--by", "model", "--model", "echo/chat", "--random", "--seed", "1")
+	_, out2, errOut2 := runWith(t, "crane\n", "assist", "--by", "model", "--model", "echo/chat", "--random", "--seed", "1")
+	for _, text := range []string{out, errOut, out2, errOut2} {
+		if strings.Contains(text, "secret-value-123") {
+			t.Fatalf("key shown on screen:\n%s", text)
+		}
+	}
+	if !strings.Contains(out, "[redacted]") {
+		t.Fatalf("expected a redacted reply:\n%s", out)
+	}
+}

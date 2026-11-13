@@ -180,11 +180,9 @@ func runEval(r evalRun) error {
 			s.add(g)
 		}
 		// Redact an echoed configured key before persisting provider-controlled strings.
-		if key := os.Getenv(r.provider.KeyEnv); key != "" {
-			for i := range g.Attempts {
-				g.Attempts[i].Reply.Text = strings.ReplaceAll(g.Attempts[i].Reply.Text, key, "[redacted]")
-				g.Attempts[i].Reply.Model = strings.ReplaceAll(g.Attempts[i].Reply.Model, key, "[redacted]")
-			}
+		for i := range g.Attempts {
+			g.Attempts[i].Reply.Text = redact(r.provider, g.Attempts[i].Reply.Text)
+			g.Attempts[i].Reply.Model = redact(r.provider, g.Attempts[i].Reply.Model)
 		}
 		if err = enc.Encode(map[string]any{"type": "game", "game": g}); err != nil {
 			return err
