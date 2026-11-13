@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -107,5 +109,23 @@ func TestSimRejectsNonLetters(t *testing.T) {
 		if code != 2 || !strings.Contains(errOut, "five-letter") {
 			t.Errorf("sim %s: code %d, %q", w, code, errOut)
 		}
+	}
+}
+
+func TestCleanRemovesSettingsAndNamesKeptTranscripts(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("WORDLE_SOLVER_HOME", home)
+	os.WriteFile(filepath.Join(home, "config.json"), []byte(`{"settings":{"max":"5"}}`), 0o600)
+	os.MkdirAll(filepath.Join(home, "evals"), 0o700)
+	os.WriteFile(filepath.Join(home, "evals", "run.jsonl"), []byte("{}\n"), 0o600)
+	code, out, _ := run(t, "clean", "-y", "--home", home)
+	if code != 0 {
+		t.Fatal(code)
+	}
+	if _, err := os.Stat(filepath.Join(home, "config.json")); !os.IsNotExist(err) {
+		t.Error("config.json survived clean")
+	}
+	if _, err := os.Stat(filepath.Join(home, "evals", "run.jsonl")); err != nil || !strings.Contains(out, "evals") {
+		t.Errorf("transcripts should be kept and named: %v\n%s", err, out)
 	}
 }
