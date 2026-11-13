@@ -16,12 +16,12 @@ import (
 )
 
 const usage = `usage:
-  wordle-solver [auto] [-date YYYY-MM-DD | -id N] [-fresh] [-dry]   solve a day's NYT puzzle by itself
+  wordle-solver [auto] [-date YYYY-MM-DD | -id N] [-fresh] [-dry]   solve a day's published puzzle by itself
   wordle-solver auto -from N [-to M] [-fresh]                       solve a range of puzzles
   wordle-solver clean [-y]                                          delete your profile, history and cached answers
   wordle-solver update [-force]                                     install the latest release
   wordle-solver version                                             print the version
-  wordle-solver stats                                               your NYT-style statistics
+  wordle-solver stats                                               statistics for your saved games
   wordle-solver sync                                                download every past answer
   wordle-solver play                                                solve a puzzle with you
   wordle-solver sim WORD                                            watch it solve a known answer
@@ -29,7 +29,7 @@ const usage = `usage:
   wordle-solver bench -strategy NAME|all [-hard]                    compare guess strategies
 
 options for every command:
-  -max N      always solve within N guesses (3-6, default 6)
+  -max N      plan to solve within N guesses (3-6, default 6)
   -target N   aim to finish on turn N (2-6)
   -hard       only make guesses Hard Mode allows
   -sloppy P   chance of a human slip per guess with turns to spare (default 0.2)
