@@ -20,6 +20,7 @@ const usage = `usage:
   wordle-solver auto -from N [-to M] [-fresh]                       solve a range of puzzles
   wordle-solver clean [-y]                                          delete your profile, history and cached answers
   wordle-solver update [-force]                                     install the latest release
+  wordle-solver settings [set KEY VALUE | reset KEY]                configure defaults
   wordle-solver version                                             print the version
   wordle-solver stats                                               statistics for your saved games
   wordle-solver sync                                                download every past answer
@@ -77,6 +78,15 @@ func main() {
 	force := fs.Bool("force", false, "")
 	home := fs.String("home", "", "")
 	showVersion := fs.Bool("version", false, "")
+	fs.String("model", "", "")
+	fs.Int("games", 10, "")
+	fs.String("set", "answers", "")
+	fs.Float64("temperature", 0, "")
+	fs.Int("max-tokens", 64, "")
+	fs.Duration("timeout", 60*time.Second, "")
+	fs.String("out", "eval.jsonl", "")
+	fs.String("base-url", "", "")
+	fs.String("api-key-env", "", "")
 	fs.Parse(args)
 
 	if runtime.GOOS == "windows" {
@@ -87,6 +97,21 @@ func main() {
 	}
 	if *home != "" {
 		os.Setenv("WORDLE_SOLVER_HOME", *home)
+	}
+
+	config, err := loadConfig()
+	if err != nil {
+		fail(err.Error())
+	}
+	sources, err := applySettings(fs, config)
+	if err != nil {
+		fail(err.Error())
+	}
+	if cmd == "settings" {
+		if err := settingsCommand(fs.Args(), fs, config, sources); err != nil {
+			fail(err.Error())
+		}
+		return
 	}
 
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
