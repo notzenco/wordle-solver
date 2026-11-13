@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	modeleval "github.com/notzenco/wordle-solver/internal/eval"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -51,9 +52,8 @@ func TestDecisionMismatch(t *testing.T) {
 
 func TestProviderKind(t *testing.T) {
 	t.Setenv("WORDLE_SOLVER_HOME", t.TempDir())
-	c, _ := loadConfig()
-	if e := providersCommand([]string{"add", "omlx", "--base-url", "http://localhost:8000/v1", "--kind", "systemone"}, &c); e != nil {
-		t.Fatal(e)
+	if code := runCLI([]string{"providers", "add", "omlx", "--base-url", "http://localhost:8000/v1", "--kind", "systemone"}, io.Discard, io.Discard); code != 0 {
+		t.Fatal("add failed")
 	}
 	c, e := loadConfig()
 	if e != nil || providerKind(allProviders(c)["omlx"]) != "systemone" {

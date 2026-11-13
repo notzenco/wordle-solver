@@ -33,10 +33,10 @@ func update(force bool) {
 		fail(err.Error())
 	}
 	if installed == "" {
-		fmt.Printf("wordle-solver %s is the latest version.\n", current)
+		fmt.Fprintf(stdout, "wordle-solver %s is the latest version.\n", current)
 		return
 	}
-	fmt.Printf("Updated wordle-solver %s to %s.\n", current, installed)
+	fmt.Fprintf(stdout, "Updated wordle-solver %s to %s.\n", current, installed)
 }
 
 // executable is the path of the running binary, with symlinks resolved.

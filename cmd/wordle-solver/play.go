@@ -11,19 +11,19 @@ import (
 
 func play(s *wordle.Solver, opts options) {
 	in := bufio.NewScanner(os.Stdin)
-	fmt.Println("Type each suggestion into Wordle, then enter the colours it showed")
-	fmt.Println("as g/y/b (e.g. bygbb). To play your own word instead: 'word pattern'.")
-	fmt.Println()
+	fmt.Fprintln(stdout, "Type each suggestion into Wordle, then enter the colours it showed")
+	fmt.Fprintln(stdout, "as g/y/b (e.g. bygbb). To play your own word instead: 'word pattern'.")
+	fmt.Fprintln(stdout)
 	for s.Turn() <= 6 {
 		suggestion, err := s.NextGuess()
 		if err != nil {
 			fail(err.Error())
 		}
-		fmt.Printf("Guess %d: %s   (%d possible answers)\n",
+		fmt.Fprintf(stdout, "Guess %d: %s   (%d possible answers)\n",
 			s.Turn(), strings.ToUpper(suggestion), len(s.Candidates()))
 		var guess, pattern string
 		for {
-			fmt.Print("  result> ")
+			fmt.Fprint(stdout, "  result> ")
 			if !in.Scan() {
 				return
 			}
@@ -31,15 +31,15 @@ func play(s *wordle.Solver, opts options) {
 			if err == nil {
 				break
 			}
-			fmt.Println("  " + err.Error())
+			fmt.Fprintln(stdout, "  "+err.Error())
 		}
 		s.Record(guess, pattern)
 		if pattern == wordle.Solved {
 			break
 		}
 	}
-	fmt.Println()
-	fmt.Print(shareText("", s.History))
+	fmt.Fprintln(stdout)
+	fmt.Fprint(stdout, shareText("", s.History))
 	if opts.copy {
 		copyText(shareText("", s.History))
 	}

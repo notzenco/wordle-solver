@@ -17,10 +17,10 @@ func clean(yes bool) {
 		fail(err.Error())
 	}
 	if !yes {
-		fmt.Printf("This deletes your player profile, game history and cached answers in\n  %s\nContinue? [y/N] ", dir)
+		fmt.Fprintf(stdout, "This deletes your player profile, game history and cached answers in\n  %s\nContinue? [y/N] ", dir)
 		in := bufio.NewScanner(os.Stdin)
 		if !in.Scan() || !strings.EqualFold(strings.TrimSpace(in.Text()), "y") {
-			fmt.Println("Nothing deleted.")
+			fmt.Fprintln(stdout, "Nothing deleted.")
 			return
 		}
 	}
@@ -29,8 +29,8 @@ func clean(yes bool) {
 		fail(err.Error())
 	}
 	if len(removed) == 0 {
-		fmt.Println("No stored data to delete.")
+		fmt.Fprintln(stdout, "No stored data to delete.")
 	} else {
-		fmt.Printf("Deleted %d files. The next game starts a new player.\n", len(removed))
+		fmt.Fprintf(stdout, "Deleted %d files. The next game starts a new player.\n", len(removed))
 	}
 }

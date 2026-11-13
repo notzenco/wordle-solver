@@ -3,14 +3,17 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
+	"errors"
 	"fmt"
-	modeleval "github.com/notzenco/wordle-solver/internal/eval"
 	"net/http"
 	"os"
-	"strconv"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
+
+	modeleval "github.com/notzenco/wordle-solver/internal/eval"
+	"github.com/notzenco/wordle-solver/internal/player"
 )
 
 type chatPlayer struct {
@@ -44,142 +47,185 @@ func (p *chatPlayer) Guess(o modeleval.Observation) (modeleval.Reply, error) {
 	// Some providers echo secrets in errors; only successful content is retained.
 	return modeleval.Reply{Text: r.Choices[0].Message.Content, Model: r.Model, Tokens: r.Usage.TotalTokens}, nil
 }
-func evalCommand(fs *flag.FlagSet, c configFile) error {
-	value := func(n string) string { return fs.Lookup(n).Value.String() }
-	spec := value("model")
-	name, model, e := modeleval.SplitModel(spec)
-	var p provider
-	if value("base-url") != "" {
-		p = provider{value("base-url"), value("api-key-env"), ""}
-		if e != nil {
-			model = spec
-			name = "one-off"
-			if model == "" {
-				return fmt.Errorf("--model is required")
-			}
+
+// evalRun is one fully resolved eval configuration.
+type evalRun struct {
+	name, model, kind, mode, set, out string
+	provider                          provider
+	games, maxOptions, distractors    int
+	maxTokens                         int
+	seed                              uint64
+	temperature                       float64
+	timeout                           time.Duration
+	hard, detected, autoKind          bool
+}
+
+// errDetected reports that the first request reached a decision model while
+// the chat adapter was in use, before anything was scored.
+var errDetected = errors.New("decision model detected")
+
+func evalCommand(c *cmdCtx) error {
+	if err := c.noArgs(); err != nil {
+		return err
+	}
+	spec := c.get("eval.model")
+	if spec == "" {
+		return usageError("eval needs --model PROVIDER/MODEL, or a saved eval.model setting")
+	}
+	r := evalRun{set: c.get("eval.set"), games: c.int("eval.games"), seed: c.uint("eval.seed"), hard: c.bool("hard"),
+		maxOptions: c.int("eval.max-options"), distractors: c.int("eval.distractors"), temperature: c.float("eval.temperature"),
+		maxTokens: c.int("eval.max-tokens"), timeout: c.dur("eval.timeout"), out: c.get("eval.out")}
+	name, model, err := modeleval.SplitModel(spec)
+	if base := c.get("eval.base-url"); base != "" {
+		r.provider = provider{BaseURL: base, KeyEnv: c.get("eval.api-key-env")}
+		if err != nil {
+			name, model = "one-off", spec
 		}
 	} else {
-		if e != nil {
-			return e
+		if err != nil {
+			return usageError("--model must be PROVIDER/MODEL, such as ollama/llama3.2 (or pass --base-url for a one-off server)")
 		}
-		p, e = findProvider(c, name)
-		if e != nil {
-			return e
+		if r.provider, err = findProvider(c.config, name); err != nil {
+			return err
 		}
-		if value("api-key-env") != "" {
-			p.KeyEnv = value("api-key-env")
+		if k := c.get("eval.api-key-env"); k != "" {
+			r.provider.KeyEnv = k
 		}
 	}
-	kind := providerKind(p)
-	if value("kind") != "" {
-		kind = value("kind")
+	r.name, r.model = name, model
+	r.kind = c.get("eval.kind")
+	r.autoKind = r.kind == "" && r.provider.Kind == ""
+	if r.kind == "" {
+		r.kind = providerKind(r.provider)
 	}
-	if kind == "systemone" && value("options") != "candidates" {
-		return fmt.Errorf("systemone requires --options candidates")
+	mode := c.get("eval.options")
+	if r.out == "" {
+		dir, err := player.Dir()
+		if err != nil {
+			return err
+		}
+		r.out = filepath.Join(dir, "evals", fmt.Sprintf("%s-%s-%s.jsonl", name, fileSafe(model), time.Now().Format("20060102-150405")))
 	}
-	p.Kind = kind
-	cap, _ := strconv.Atoi(value("max-options"))
-	distractors, _ := strconv.Atoi(value("distractors"))
-	if value("options") != "candidates" && distractors > 0 {
-		return fmt.Errorf("--distractors requires --options candidates")
+	for {
+		r.mode = mode
+		if r.mode == "" {
+			r.mode = map[string]string{"chat": "free", "systemone": "candidates"}[r.kind]
+		}
+		if r.kind == "systemone" && r.mode != "candidates" {
+			return usageError("decision models (--kind systemone) choose from offered words; use --options candidates")
+		}
+		if r.distractors > 0 && r.mode != "candidates" {
+			return usageError("--distractors needs --options candidates")
+		}
+		err := runEval(r)
+		if errors.Is(err, errDetected) && !r.detected {
+			fmt.Fprintf(stderr, "%s is a decision model; using --kind systemone with candidate options.\n", model)
+			r.kind, r.detected, r.autoKind = "systemone", true, false
+			continue
+		}
+		return err
 	}
-	games, _ := strconv.Atoi(value("games"))
-	seed, _ := strconv.ParseUint(value("seed"), 10, 64)
-	temperature, _ := strconv.ParseFloat(value("temperature"), 64)
-	maxTokens, _ := strconv.Atoi(value("max-tokens"))
-	timeout, _ := time.ParseDuration(value("timeout"))
-	hard, _ := strconv.ParseBool(value("hard"))
-	answers := modeleval.Sample(value("set"), games, seed)
+}
+
+var unsafeFileChars = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
+
+func fileSafe(s string) string { return strings.Trim(unsafeFileChars.ReplaceAllString(s, "-"), "-") }
+
+func runEval(r evalRun) error {
+	answers := modeleval.Sample(r.set, r.games, r.seed)
+	if err := os.MkdirAll(filepath.Dir(r.out), 0700); err != nil {
+		return err
+	}
 	// Exclusive creation protects previous transcripts.
-	f, e := os.OpenFile(value("out"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if e != nil {
-		return e
+	f, err := os.OpenFile(r.out, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
 	}
 	defer f.Close()
 	enc := json.NewEncoder(f)
-	settings := map[string]string{}
-	for k, n := range settingFlags {
-		settings[k] = value(n)
+	settings := map[string]any{"eval.set": r.set, "eval.games": r.games, "eval.seed": r.seed, "hard": r.hard, "eval.kind": r.kind,
+		"eval.options": r.mode, "eval.max-options": r.maxOptions, "eval.distractors": r.distractors,
+		"eval.temperature": r.temperature, "eval.max-tokens": r.maxTokens, "eval.timeout": r.timeout.String()}
+	meta := map[string]any{"type": "run", "model": r.model, "provider": r.name, "base_url": r.provider.BaseURL, "settings": settings,
+		"kind_detected": r.detected, "seed": r.seed, "date": time.Now().UTC().Format(time.RFC3339), "version": versionString()}
+	if err = enc.Encode(meta); err != nil {
+		return err
 	}
-	settings["eval.kind"] = kind
-	meta := map[string]any{"type": "run", "model": model, "provider": name, "base_url": p.BaseURL, "settings": settings, "seed": seed, "date": time.Now().UTC().Format(time.RFC3339), "version": versionString()}
-	if e = enc.Encode(meta); e != nil {
-		return e
+	var player modeleval.Player = &chatPlayer{r.provider, r.model, r.temperature, r.maxTokens, r.timeout}
+	if r.kind == "systemone" {
+		player = &systemonePlayer{r.provider, r.model, r.timeout}
 	}
-	var player modeleval.Player = &chatPlayer{p, model, temperature, maxTokens, timeout}
-	if kind == "systemone" {
-		player = &systemonePlayer{p, model, timeout}
-	}
-	metricCount, inconsistent, choices := 0, 0, 0
-	probability, loss, uniform, frequency := 0.0, 0.0, 0.0, 0.0
-	solved, eligible, rerouted := 0, 0, 0
-	guesses, beyond, invalid, malformed, violations, tokens := 0, 0, 0, 0, 0, 0
-	var duration time.Duration
-	for _, a := range answers {
-		r := modeleval.PlayWithOptions(player, a, model, hard, modeleval.PlayOptions{Candidates: value("options") == "candidates", MaxOptions: cap, Distractors: distractors, Seed: seed})
-		if r.Rerouted {
-			rerouted++
+	s := evalSummary{Model: r.model, Kind: r.kind, Options: r.mode, Out: r.out, Games: len(answers), Distractors: r.distractors}
+	for i, a := range answers {
+		g := modeleval.PlayWithOptions(player, a, r.model, r.hard, modeleval.PlayOptions{Candidates: r.mode == "candidates", MaxOptions: r.maxOptions, Distractors: r.distractors, Seed: r.seed})
+		if i == 0 && r.autoKind && g.Error == modeleval.ErrDecisionModel.Error() {
+			f.Close()
+			os.Remove(r.out)
+			return errDetected
+		}
+		if g.Rerouted {
+			s.Rerouted++
 		} else {
-			eligible++
-			for _, attempt := range r.Attempts {
-				if attempt.Problem == "" || attempt.Problem == "hard mode violation" {
-					choices++
-					if attempt.Inconsistent {
-						inconsistent++
-					}
-				}
-				if m := attempt.Metrics; m != nil {
-					metricCount++
-					probability += m.TrueProbability
-					loss += m.LogLoss
-					uniform += m.UniformLogLoss
-					frequency += m.FrequencyLogLoss
-				}
-			}
-			guesses += r.Guesses
-			beyond += r.Beyond
-			invalid += r.Invalid
-			malformed += r.Malformed
-			violations += r.HardViolations
-			tokens += r.Tokens
-			duration += r.Duration
-			if r.Solved {
-				solved++
-			}
+			s.add(g)
 		}
 		// Redact an echoed configured key before persisting provider-controlled strings.
-		if key := os.Getenv(p.KeyEnv); key != "" {
-			for i := range r.Attempts {
-				r.Attempts[i].Reply.Text = strings.ReplaceAll(r.Attempts[i].Reply.Text, key, "[redacted]")
-				r.Attempts[i].Reply.Model = strings.ReplaceAll(r.Attempts[i].Reply.Model, key, "[redacted]")
+		if key := os.Getenv(r.provider.KeyEnv); key != "" {
+			for i := range g.Attempts {
+				g.Attempts[i].Reply.Text = strings.ReplaceAll(g.Attempts[i].Reply.Text, key, "[redacted]")
+				g.Attempts[i].Reply.Model = strings.ReplaceAll(g.Attempts[i].Reply.Model, key, "[redacted]")
 			}
 		}
-		if e = enc.Encode(map[string]any{"type": "game", "game": r}); e != nil {
-			return e
+		if err = enc.Encode(map[string]any{"type": "game", "game": g}); err != nil {
+			return err
 		}
-		if r.Error != "" {
-			return fmt.Errorf("%s", r.Error)
+		if g.Error != "" {
+			return fmt.Errorf("%s (transcript so far: %s)", g.Error, r.out)
 		}
 	}
-	metrics := map[string]any{"offered_answer_turns": metricCount, "model_log_loss": 0.0, "uniform_log_loss": 0.0, "frequency_log_loss": 0.0, "true_probability": 0.0, "inconsistent_rate": 0.0}
-	if metricCount > 0 {
-		n := float64(metricCount)
-		metrics["model_log_loss"] = loss / n
-		metrics["uniform_log_loss"] = uniform / n
-		metrics["frequency_log_loss"] = frequency / n
-		metrics["true_probability"] = probability / n
+	if err = enc.Encode(map[string]any{"type": "summary", "metrics": s.metrics(), "games": s.Games, "eligible": s.Eligible, "solved": s.Solved, "rerouted": s.Rerouted}); err != nil {
+		return err
 	}
-	if choices > 0 {
-		metrics["inconsistent_rate"] = float64(inconsistent) / float64(choices)
-	}
-	if e = enc.Encode(map[string]any{"metrics": metrics, "type": "summary", "games": len(answers), "eligible": eligible, "solved": solved, "rerouted": rerouted}); e != nil {
-		return e
-	}
-	writeEvalSummary(os.Stdout, evalSummary{
-		Model: model, Kind: kind, Options: value("options"), Out: value("out"),
-		Games: len(answers), Eligible: eligible, Solved: solved, Rerouted: rerouted,
-		Guesses: guesses, Beyond: beyond, Invalid: invalid, Malformed: malformed, Violations: violations, Tokens: tokens, Duration: duration,
-		MetricCount: metricCount, Choices: choices, Inconsistent: inconsistent, Probability: probability, Loss: loss, Uniform: uniform, Frequency: frequency, Distractors: distractors,
-	})
+	writeEvalSummary(stdout, s)
 	return f.Sync()
+}
+
+func (s *evalSummary) add(g modeleval.Result) {
+	s.Eligible++
+	for _, a := range g.Attempts {
+		if a.Problem == "" || a.Problem == "hard mode violation" {
+			s.Choices++
+			if a.Inconsistent {
+				s.Inconsistent++
+			}
+		}
+		if m := a.Metrics; m != nil {
+			s.MetricCount++
+			s.Probability += m.TrueProbability
+			s.Loss += m.LogLoss
+			s.Uniform += m.UniformLogLoss
+			s.Frequency += m.FrequencyLogLoss
+		}
+	}
+	s.Guesses += g.Guesses
+	s.Beyond += g.Beyond
+	s.Invalid += g.Invalid
+	s.Malformed += g.Malformed
+	s.Violations += g.HardViolations
+	s.Tokens += g.Tokens
+	s.Duration += g.Duration
+	if g.Solved {
+		s.Solved++
+	}
+}
+
+func (s evalSummary) metrics() map[string]any {
+	m := map[string]any{"offered_answer_turns": s.MetricCount, "model_log_loss": 0.0, "uniform_log_loss": 0.0, "frequency_log_loss": 0.0, "true_probability": 0.0, "inconsistent_rate": 0.0}
+	if s.MetricCount > 0 {
+		n := float64(s.MetricCount)
+		m["model_log_loss"], m["uniform_log_loss"], m["frequency_log_loss"], m["true_probability"] = s.Loss/n, s.Uniform/n, s.Frequency/n, s.Probability/n
+	}
+	if s.Choices > 0 {
+		m["inconsistent_rate"] = float64(s.Inconsistent) / float64(s.Choices)
+	}
+	return m
 }

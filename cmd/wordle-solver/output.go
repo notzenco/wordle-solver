@@ -33,30 +33,30 @@ func score(turns []wordle.Turn) string {
 func printStats(store *player.Store) {
 	st := store.Stats(wordle.NumberForDate(time.Now()))
 	if st.Played == 0 {
-		fmt.Println("No games played yet.")
+		fmt.Fprintln(stdout, "No games played yet.")
 		return
 	}
-	fmt.Printf("Played %d   Win %% %d   Current streak %d   Max streak %d\n\n",
+	fmt.Fprintf(stdout, "Played %d   Win %% %d   Current streak %d   Max streak %d\n\n",
 		st.Played, 100*st.Won/st.Played, st.CurrentStreak, st.MaxStreak)
 	most := 1
 	for _, c := range st.Guesses {
 		most = max(most, c)
 	}
-	fmt.Println("Guess distribution")
+	fmt.Fprintln(stdout, "Guess distribution")
 	for turn := 1; turn <= 6; turn++ {
 		c := st.Guesses[turn]
-		fmt.Printf("%d %s %d\n", turn, strings.Repeat("█", 1+30*c/most), c)
+		fmt.Fprintf(stdout, "%d %s %d\n", turn, strings.Repeat("█", 1+30*c/most), c)
 	}
 }
 
 // printGame shows the guesses with their colours, then the share text.
 func printGame(number string, turns []wordle.Turn, toClipboard bool) {
 	for _, t := range turns {
-		fmt.Printf("%s  %s\n", wordle.Emoji(t.Pattern), strings.ToUpper(t.Guess))
+		fmt.Fprintf(stdout, "%s  %s\n", wordle.Emoji(t.Pattern), strings.ToUpper(t.Guess))
 	}
-	fmt.Println()
+	fmt.Fprintln(stdout)
 	share := shareText(number, turns)
-	fmt.Print(share)
+	fmt.Fprint(stdout, share)
 	if toClipboard {
 		copyText(share)
 	}
@@ -95,7 +95,7 @@ func copyText(text string) {
 		fmt.Fprintf(os.Stderr, "\ncould not copy to the clipboard: %v\n", err)
 		return
 	}
-	fmt.Println("\n(copied to the clipboard)")
+	fmt.Fprintln(stdout, "\n(copied to the clipboard)")
 }
 
 // thousands formats n with commas, as the share text does ("1,973").

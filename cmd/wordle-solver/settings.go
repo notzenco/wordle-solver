@@ -8,9 +8,9 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/notzenco/wordle-solver/internal/player"
@@ -20,14 +20,6 @@ import (
 type configFile struct {
 	Providers map[string]provider `json:"providers,omitempty"`
 	Settings  map[string]string   `json:"settings,omitempty"`
-}
-
-var settingFlags = map[string]string{
-	"max": "max", "sloppy": "sloppy", "hard": "hard", "target": "target", "strategy": "strategy", "copy": "copy",
-	"eval.kind": "kind", "eval.options": "options", "eval.max-options": "max-options", "eval.distractors": "distractors",
-	"eval.model": "model", "eval.games": "games", "eval.set": "set", "eval.seed": "seed",
-	"eval.temperature": "temperature", "eval.max-tokens": "max-tokens", "eval.timeout": "timeout", "eval.out": "out",
-	"eval.base-url": "base-url", "eval.api-key-env": "api-key-env",
 }
 
 func configPath() (string, error) { d, e := player.Dir(); return filepath.Join(d, "config.json"), e }
@@ -44,7 +36,9 @@ func loadConfig() (configFile, error) {
 	if e != nil {
 		return c, e
 	}
-	e = json.Unmarshal(b, &c)
+	if e = json.Unmarshal(b, &c); e != nil {
+		return c, fmt.Errorf("reading %s: %v", p, e)
+	}
 	if c.Settings == nil {
 		c.Settings = map[string]string{}
 	}
@@ -67,7 +61,7 @@ func loadConfig() (configFile, error) {
 			return c, err
 		}
 	}
-	return c, e
+	return c, nil
 }
 func saveConfig(c configFile) error {
 	p, e := configPath()
@@ -96,15 +90,15 @@ func saveConfig(c configFile) error {
 	return os.Rename(f.Name(), p)
 }
 func validateSetting(k, v string) error {
-	if _, ok := settingFlags[k]; !ok {
-		return fmt.Errorf("unknown setting %q", k)
+	if o := optionByID(k); o == nil || !o.setting {
+		return fmt.Errorf("unknown setting %q; run 'wordle-solver help settings' for the list", k)
 	}
-	bad := func() error { return fmt.Errorf("invalid value for %s", k) }
+	bad := func() error { return fmt.Errorf("invalid value %q for %s", v, k) }
 	switch k {
 	case "eval.kind":
 		return validKind(v)
 	case "eval.options":
-		if v != "free" && v != "candidates" {
+		if v != "" && v != "free" && v != "candidates" {
 			return bad()
 		}
 	case "eval.max-options", "eval.distractors":
@@ -113,8 +107,9 @@ func validateSetting(k, v string) error {
 			return bad()
 		}
 	case "hard", "copy":
-		_, e := strconv.ParseBool(v)
-		return e
+		if _, e := strconv.ParseBool(v); e != nil {
+			return bad()
+		}
 	case "max", "target", "eval.games", "eval.max-tokens", "eval.seed":
 		n, e := strconv.ParseUint(v, 10, 64)
 		if e != nil {
@@ -152,65 +147,121 @@ func validateSetting(k, v string) error {
 	}
 	return nil
 }
-func applySettings(fs *flag.FlagSet, c configFile) (map[string]string, error) {
+
+func settingEnv(key string) string {
+	return "WORDLE_SOLVER_" + strings.ToUpper(strings.NewReplacer(".", "_", "-", "_").Replace(key))
+}
+
+// applySettings fills each setting option in fs from flag, env, config or
+// default, in that order, and returns where each value came from.
+func applySettings(fs *flag.FlagSet, opts []*option, c configFile) (map[string]string, error) {
 	explicit := map[string]bool{}
 	fs.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	src := map[string]string{}
-	for k, name := range settingFlags {
-		f := fs.Lookup(name)
+	for _, o := range opts {
+		if !o.setting {
+			continue
+		}
+		f := fs.Lookup(o.flag)
 		if f == nil {
 			continue
 		}
-		v, ok := c.Settings[k]
+		v, ok := c.Settings[o.id]
 		source := "default"
 		if ok {
 			source = "config"
 		} else {
 			v = f.DefValue
 		}
-		env := "WORDLE_SOLVER_" + strings.ToUpper(strings.NewReplacer(".", "_", "-", "_").Replace(k))
-		if x, ok := os.LookupEnv(env); ok {
-			v = x
-			source = "env"
+		if x, ok := os.LookupEnv(settingEnv(o.id)); ok {
+			v, source = x, "env"
 		}
-		if explicit[name] {
-			v = f.Value.String()
-			source = "flag"
+		if explicit[o.flag] {
+			v, source = f.Value.String(), "flag"
 		}
-		if e := validateSetting(k, v); e != nil {
+		if e := validateSetting(o.id, v); e != nil {
+			switch source {
+			case "flag":
+				return nil, usageError(fmt.Sprintf("--%s: %v", o.flag, e))
+			case "env":
+				return nil, fmt.Errorf("%s: %v", settingEnv(o.id), e)
+			case "config":
+				return nil, fmt.Errorf("saved setting %v; fix it with 'wordle-solver settings set' or 'reset'", e)
+			}
 			return nil, e
 		}
 		if e := f.Value.Set(v); e != nil {
 			return nil, e
 		}
-		src[k] = source
+		src[o.id] = source
 	}
 	return src, nil
 }
-func settingsCommand(args []string, fs *flag.FlagSet, c configFile, src map[string]string) error {
-	if len(args) == 0 {
-		keys := []string{}
-		for k := range src {
-			keys = append(keys, k)
+
+func settingsCommand(c *cmdCtx) error {
+	sub := "list"
+	args := c.args
+	if len(args) > 0 {
+		sub, args = args[0], args[1:]
+	}
+	if c.bool("all") && sub != "reset" {
+		return usageError("--all only applies to reset")
+	}
+	opts := settingOptions()
+	fs := newFlagSet("settings", opts)
+	src, err := applySettings(fs, opts, c.config)
+	if err != nil {
+		return err
+	}
+	value := func(k string) string { return fs.Lookup(optionByID(k).flag).Value.String() }
+	switch {
+	case sub == "list" && len(args) == 0:
+		tw := tabwriter.NewWriter(stdout, 0, 0, 3, ' ', 0)
+		fmt.Fprintln(tw, "KEY\tVALUE\tSOURCE")
+		for _, o := range opts {
+			v := value(o.id)
+			if v == "" {
+				v = "-"
+			}
+			fmt.Fprintf(tw, "%s\t%s\t%s\n", o.id, v, src[o.id])
 		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			fmt.Printf("%s\t%s\t%s\n", k, fs.Lookup(settingFlags[k]).Value.String(), src[k])
+		return tw.Flush()
+	case sub == "get" && len(args) == 1:
+		if err := validateSetting(args[0], value(args[0])); err != nil {
+			return err
+		}
+		fmt.Fprintln(stdout, value(args[0]))
+		return nil
+	case sub == "set" && len(args) == 2:
+		if err := validateSetting(args[0], args[1]); err != nil {
+			return err
+		}
+		c.config.Settings[args[0]] = args[1]
+		if err := saveConfig(c.config); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "Saved %s = %s\n", args[0], args[1])
+		if _, ok := os.LookupEnv(settingEnv(args[0])); ok {
+			fmt.Fprintf(stdout, "Note: %s is set in your environment and takes precedence.\n", settingEnv(args[0]))
 		}
 		return nil
-	}
-	if len(args) == 3 && args[0] == "set" {
-		if e := validateSetting(args[1], args[2]); e != nil {
-			return e
+	case sub == "reset" && c.bool("all") && len(args) == 0:
+		c.config.Settings = map[string]string{}
+		if err := saveConfig(c.config); err != nil {
+			return err
 		}
-		c.Settings[args[1]] = args[2]
-	} else if len(args) == 2 && args[0] == "reset" {
-		if _, ok := settingFlags[args[1]]; !ok {
-			return fmt.Errorf("unknown setting %q", args[1])
+		fmt.Fprintln(stdout, "Reset every saved setting to its default.")
+		return nil
+	case sub == "reset" && len(args) == 1:
+		if o := optionByID(args[0]); o == nil || !o.setting {
+			return fmt.Errorf("unknown setting %q; run 'wordle-solver help settings' for the list", args[0])
 		}
-		delete(c.Settings, args[1])
-	} else {
-		return fmt.Errorf("usage: settings [set KEY VALUE | reset KEY]")
+		delete(c.config.Settings, args[0])
+		if err := saveConfig(c.config); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "Reset %s to its default.\n", args[0])
+		return nil
 	}
-	return saveConfig(c)
+	return usageError("usage: wordle-solver settings [list | get KEY | set KEY VALUE | reset KEY | reset --all]")
 }
