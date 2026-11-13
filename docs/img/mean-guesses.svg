@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 336" width="760" height="336" role="img" aria-labelledby="title desc">
+<title id="title">Mean guesses per strategy</title><desc id="desc">Dot plot of the mean number of guesses in solved games for each strategy, in normal and Hard Mode, with the number of failed games.</desc>
+<style>
+.surface{fill:#fcfcfb}.ink{fill:#0b0b0b}.ink2{fill:#52514e}.muted{fill:#898781}
+.grid{stroke:#e1e0d9;stroke-width:1}.axis{stroke:#c3c2b7;stroke-width:1}
+.s1{fill:#2a78d6}.s2{fill:#eb6834}.l1{stroke:#2a78d6}.l2{stroke:#eb6834}.ring{stroke:#fcfcfb}
+text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:12px}
+.title{font-size:15px;font-weight:600}.num{font-variant-numeric:tabular-nums}
+@media (prefers-color-scheme:dark){
+.surface{fill:#1a1a19}.ink{fill:#f0efec}.ink2{fill:#c3c2b7}.muted{fill:#898781}
+.grid{stroke:#2c2c2a}.axis{stroke:#383835}
+.s1{fill:#3987e5}.s2{fill:#d95926}.l1{stroke:#3987e5}.l2{stroke:#d95926}.ring{stroke:#1a1a19}}
+</style>
+<rect class="surface" width="760" height="336" rx="8"/>
+<text class="ink title" x="20" y="30">Mean guesses in solved games (lower is better)</text>
+<rect class="s1" x="20" y="48" width="12" height="12" rx="3"/><text class="ink2" x="38" y="58">Normal</text>
+<rect class="s2" x="104" y="48" width="12" height="12" rx="3"/><text class="ink2" x="122" y="58">Hard Mode</text>
+<line class="grid" x1="110.0" x2="110.0" y1="76" y2="290"/><text class="muted num" x="110.0" y="306" text-anchor="middle">3.4</text>
+<line class="grid" x1="270.0" x2="270.0" y1="76" y2="290"/><text class="muted num" x="270.0" y="306" text-anchor="middle">3.5</text>
+<line class="grid" x1="430.0" x2="430.0" y1="76" y2="290"/><text class="muted num" x="430.0" y="306" text-anchor="middle">3.6</text>
+<line class="grid" x1="590.0" x2="590.0" y1="76" y2="290"/><text class="muted num" x="590.0" y="306" text-anchor="middle">3.7</text>
+<text class="muted" x="740" y="72" text-anchor="end">failed: normal / hard</text>
+<text class="ink" x="20" y="100">entropy</text>
+<line class="axis" x1="262.7" x2="401.7" y1="96" y2="96"/>
+<circle class="s1 ring" cx="262.7" cy="96" r="6" stroke-width="2"><title>entropy, normal: mean 3.495 guesses</title></circle>
+<circle class="s2 ring" cx="401.7" cy="96" r="6" stroke-width="2"><title>entropy, hard: mean 3.582 guesses</title></circle>
+<text class="ink2 num" x="740" y="100" text-anchor="end">0 / 12</text>
+<text class="ink" x="20" y="140">expected</text>
+<line class="axis" x1="303.5" x2="437.9" y1="136" y2="136"/>
+<circle class="s1 ring" cx="303.5" cy="136" r="6" stroke-width="2"><title>expected, normal: mean 3.521 guesses</title></circle>
+<circle class="s2 ring" cx="437.9" cy="136" r="6" stroke-width="2"><title>expected, hard: mean 3.605 guesses</title></circle>
+<text class="ink2 num" x="740" y="140" text-anchor="end">0 / 14</text>
+<text class="ink" x="20" y="180">minimax</text>
+<line class="axis" x1="347.8" x2="490.3" y1="176" y2="176"/>
+<circle class="s1 ring" cx="347.8" cy="176" r="6" stroke-width="2"><title>minimax, normal: mean 3.549 guesses</title></circle>
+<circle class="s2 ring" cx="490.3" cy="176" r="6" stroke-width="2"><title>minimax, hard: mean 3.638 guesses</title></circle>
+<text class="ink2 num" x="740" y="180" text-anchor="end">0 / 13</text>
+<text class="ink" x="20" y="220">freq</text>
+<line class="axis" x1="509.7" x2="509.7" y1="216" y2="216"/>
+<circle class="s1 ring" cx="509.7" cy="209" r="6" stroke-width="2"><title>freq, normal: mean 3.650 guesses</title></circle>
+<circle class="s2 ring" cx="509.7" cy="223" r="6" stroke-width="2"><title>freq, hard: mean 3.650 guesses</title></circle>
+<text class="muted" x="523.7" y="220">same in both modes</text>
+<text class="ink2 num" x="740" y="220" text-anchor="end">22 / 22</text>
+<text class="ink" x="20" y="260">planner</text>
+<line class="axis" x1="418.3" x2="435.0" y1="256" y2="256"/>
+<circle class="s1 ring" cx="418.3" cy="256" r="6" stroke-width="2"><title>planner, normal: mean 3.593 guesses</title></circle>
+<circle class="s2 ring" cx="435.0" cy="256" r="6" stroke-width="2"><title>planner, hard: mean 3.603 guesses</title></circle>
+<text class="ink2 num" x="740" y="260" text-anchor="end">0 / 12</text>
+</svg>
