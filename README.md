@@ -186,6 +186,18 @@ wordle-solver eval --model ollama/llama3.2 --games 10 --seed 42
 wordle-solver eval --model omlx/clef-flash-4bit          # a decision model, detected automatically
 ```
 
+First results, for the Clef decision model (50 games per row, seed 42; full
+table and discussion in the [eval guide](docs/eval.md#results)):
+
+| Model | Answers solved | Held-out solved | Guesses per game on answers (entropy: 3.44) |
+| --- | ---: | ---: | ---: |
+| Clef Flash, 4-bit | 48/50 | 47/50 | 4.08 |
+| Clef Flash, 8-bit | 50/50 | 44/50 | 4.04 |
+| Clef, 8-bit | 50/50 | not run | 4.10 |
+
+On held-out words, which were never answers, Clef does worse than a uniform
+guess among the offered words: it leans on how familiar a word is.
+
 Each run writes a transcript to the `evals` folder beside your saved data
 unless you pass `--out`. See [evaluating models](docs/eval.md) for configuration,
 held-out answers, transcripts and rerouting.

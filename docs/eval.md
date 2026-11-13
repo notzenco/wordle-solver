@@ -90,7 +90,52 @@ lack its summary. Stdout shows eligible games, wins and rerouting counts.
 
 ## Results
 
-No model runs have been authorised for publication. Results are empty.
+Clef, a decision model, on 2026-11-13: 50 games per row, seed 42, normal
+mode, run locally through oMLX on an Apple Silicon Mac. Each turn offered up
+to 64 words that fit the clues (candidates mode). The same seed gives every
+model the same answers, so rows within a set compare directly. Transcripts
+are in [eval-results](eval-results).
+
+| Model | Set | Solved | Guesses per game | Entropy strategy | Mean P(answer) | Log loss | Uniform | Frequency | Time |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Clef Flash, 4-bit | answers | 48/50 | 4.08 | 3.44 | 34.5% | 1.817 | 2.191 | 1.809 | 70 s |
+| Clef Flash, 8-bit | answers | 50/50 | 4.04 | 3.44 | 35.1% | 1.734 | 2.080 | 1.768 | 74 s |
+| Clef, 8-bit | answers | 50/50 | 4.10 | 3.44 | 36.9% | 1.781 | 2.029 | 1.647 | 248 s |
+| Clef Flash, 4-bit | held-out | 47/50 | 4.92 | 4.20 | 31.6% | 2.332 | 1.894 | 2.771 | 141 s |
+| Clef Flash, 8-bit | held-out | 44/50 | 4.98 | 4.20 | 33.7% | 2.123 | 1.729 | 2.654 | 147 s |
+
+Guesses per game counts an unsolved game as 6. Mean P(answer) and the log
+losses cover only the turns where the answer was among the offered words;
+lower log loss is better, and the uniform and frequency columns are the
+baselines on those same turns. Time is wall-clock time for the 50 games.
+
+What the runs show:
+
+- **Clef plays well on real answers but leans on familiarity.** On the
+  official answers it solves 96–100% of games, about 0.6 guesses behind the
+  entropy strategy. Its answer probabilities beat a uniform guess, but not
+  clearly a plain frequency prior: only Flash 8-bit edges past it, and the
+  larger Clef model is further behind it.
+- **Held-out words expose that.** On valid words that were never answers,
+  which are mostly unfamiliar, Clef's log loss is worse than a uniform guess
+  and it fails 3–6 games in 50 (JOURS, BEAUS and VANGS beat both Flash
+  variants). Every offered word fits the clues, so this is about choosing
+  among them: Clef favours familiar words, which suits the official answers
+  and hurts on obscure ones.
+- **Size and precision matter little here.** The 8-bit Flash model is
+  slightly better than the 4-bit one on answers; on held-out words it has
+  the lower log loss but solves fewer games. The full Clef model is not better than Flash while
+  taking over three times as long. With 50 games per row, differences of a
+  game or two are within noise.
+
+The full Clef model was not run on the held-out set. Chat models have not
+been run yet.
+
+To reproduce a row (oMLX serving the model locally):
+
+```sh
+wordle-solver eval --model omlx/clef-flash-4bit --set answers --games 50 --seed 42
+```
 
 ## Decision models and candidate options
 
