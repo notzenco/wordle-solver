@@ -47,6 +47,20 @@ func familiarity(w string) float64 {
 
 // Score returns the feedback pattern for guess against answer, handling
 // repeated letters the way Wordle does.
+// IsWord reports whether w is five lowercase letters a-z, the form Score and
+// HardValid require.
+func IsWord(w string) bool {
+	if len(w) != 5 {
+		return false
+	}
+	for i := range 5 {
+		if w[i] < 'a' || w[i] > 'z' {
+			return false
+		}
+	}
+	return true
+}
+
 func Score(guess, answer string) string {
 	var result [5]byte
 	var unmatched [26]int

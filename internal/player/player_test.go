@@ -2,7 +2,10 @@ package player
 
 import (
 	"math/rand/v2"
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/notzenco/wordle-solver/internal/wordle"
@@ -67,5 +70,50 @@ func TestOpenerFavoursTheFirstFavourite(t *testing.T) {
 	}
 	if first < 700 || first > 900 {
 		t.Errorf("first favourite used %d of 1000 times, want about 800", first)
+	}
+}
+
+func TestLoadTreatsNullSavedDataAsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{historyFile, answersFile} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("null\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s, err := Load(dir, rand.New(rand.NewPCG(1, 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Record(1, "2021-06-20", []wordle.Turn{{Guess: "crane", Pattern: wordle.Solved}})
+	s.AddAnswer(1, "crane")
+	if err := s.Save(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLoadRejectsMalformedSavedGames(t *testing.T) {
+	dir := t.TempDir()
+	bad := `{"1":{"date":"2021-06-20","turns":[{"Guess":"12!34","Pattern":"ggggg"}]}}`
+	if err := os.WriteFile(filepath.Join(dir, historyFile), []byte(bad), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(dir, rand.New(rand.NewPCG(1, 1))); err == nil || !strings.Contains(err.Error(), historyFile) {
+		t.Fatalf("malformed game accepted: %v", err)
+	}
+}
+
+func TestLoadReplacesMalformedOpeners(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, profileFile), []byte(`{"openers":["12!34","crane"]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := Load(dir, rand.New(rand.NewPCG(1, 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, o := range s.Profile.Openers {
+		if !wordle.IsWord(o) {
+			t.Fatalf("kept opener %q", o)
+		}
 	}
 }

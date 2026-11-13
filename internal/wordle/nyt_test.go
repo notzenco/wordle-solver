@@ -2,9 +2,11 @@ package wordle
 
 import (
 	"context"
+	"encoding/json"
 	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -53,4 +55,38 @@ func TestDateForNumber(t *testing.T) {
 			t.Errorf("NumberForDate(%s) = %d, want %d", want, got, n)
 		}
 	}
+}
+
+func TestFetchPuzzleRejectsMalformedSolutions(t *testing.T) {
+	for _, solution := range []string{"12!34", "MOXIE ", "mox", "moxié"} {
+		body, _ := json.Marshal(map[string]any{"solution": solution, "print_date": "2026-11-13", "days_since_launch": 1973})
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write(body) }))
+		day := time.Date(2026, 11, 13, 0, 0, 0, 0, time.Local)
+		if p, err := FetchPuzzle(context.Background(), srv.URL, day); err == nil {
+			t.Errorf("solution %q accepted as %q", solution, p.Solution)
+		}
+		srv.Close()
+	}
+}
+
+func TestIsWord(t *testing.T) {
+	for w, want := range map[string]bool{"crane": true, "CRANE": false, "12!34": false, "cran": false, "craneс": false, "cranê": false} {
+		if IsWord(w) != want {
+			t.Errorf("IsWord(%q) = %v", w, !want)
+		}
+	}
+}
+
+func FuzzScore(f *testing.F) {
+	f.Add("crane", "moxie")
+	f.Add("eerie", "geese")
+	f.Fuzz(func(t *testing.T, guess, answer string) {
+		if !IsWord(guess) || !IsWord(answer) {
+			return
+		}
+		p := Score(guess, answer)
+		if len(p) != 5 || strings.Trim(p, "gyb") != "" || (p == Solved) != (guess == answer) {
+			t.Fatalf("Score(%q, %q) = %q", guess, answer, p)
+		}
+	})
 }

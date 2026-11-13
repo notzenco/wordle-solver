@@ -5,11 +5,13 @@ package player
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/notzenco/wordle-solver/internal/wordle"
 )
@@ -63,6 +65,8 @@ func Load(dir string, rng *rand.Rand) (*Store, error) {
 	if err := readJSON(filepath.Join(dir, profileFile), &s.Profile); err != nil {
 		return nil, err
 	}
+	// A hand-edited profile may hold words the solver can't score.
+	s.Profile.Openers = slices.DeleteFunc(s.Profile.Openers, func(w string) bool { return !wordle.IsWord(w) })
 	if len(s.Profile.Openers) == 0 {
 		// Strong openers only, so careful play never has to swap one out.
 		perm := rng.Perm(len(wordle.StrongOpeners))
@@ -75,7 +79,34 @@ func Load(dir string, rng *rand.Rand) (*Store, error) {
 	if err := readJSON(filepath.Join(dir, answersFile), &s.Answers); err != nil {
 		return nil, err
 	}
+	// A file holding null decodes to a nil map, which can't be added to.
+	if s.History == nil {
+		s.History = map[int]Game{}
+	}
+	if s.Answers == nil {
+		s.Answers = map[int]string{}
+	}
+	if err := checkGames(s.History); err != nil {
+		return nil, fmt.Errorf("%s: %w", filepath.Join(dir, historyFile), err)
+	}
+	for n, a := range s.Answers {
+		if !wordle.IsWord(a) {
+			return nil, fmt.Errorf("%s: answer %q for puzzle %d is not five letters a-z", filepath.Join(dir, answersFile), a, n)
+		}
+	}
 	return s, nil
+}
+
+// checkGames rejects saved turns the solver can't score, such as hand edits.
+func checkGames(games map[int]Game) error {
+	for n, g := range games {
+		for _, t := range g.Turns {
+			if !wordle.IsWord(t.Guess) || len(t.Pattern) != 5 || strings.Trim(t.Pattern, "gyb") != "" {
+				return fmt.Errorf("puzzle %d has a malformed turn %q %q", n, t.Guess, t.Pattern)
+			}
+		}
+	}
+	return nil
 }
 
 func readJSON(path string, v any) error {
