@@ -25,9 +25,11 @@ is not a successful solution cost. Both players have six turns.
 
 ## Configuration and running
 
-Settings live in config.json beside the saved player data. `-home` and
+Settings live in config.json beside the saved player data. `--home` and
 WORDLE_SOLVER_HOME select that directory. Precedence is flag, environment,
-config, default. `settings` prints values and sources;
+config, default. `settings` prints values and sources, `settings get KEY`
+prints one value, `wordle-solver help settings` lists every key, and
+`settings reset --all` clears them;
 `settings set eval.games 20` saves a default and
 `settings reset eval.games` removes it. Environment names start with
 WORDLE_SOLVER_, uppercase the setting and replace dots and hyphens with
@@ -38,8 +40,8 @@ underscores (for example WORDLE_SOLVER_EVAL_MAX_TOKENS). Boolean flags use
 wordle-solver providers
 wordle-solver providers check ollama
 wordle-solver models ollama
-wordle-solver eval --model ollama/llama3.2 --games 10 --seed 42 --out ollama.jsonl
-wordle-solver eval --model omlx/mlx-community/Llama-3.2-3B-Instruct-4bit --set heldout --seed 42 --out omlx.jsonl
+wordle-solver eval --model ollama/llama3.2 --games 10 --seed 42
+wordle-solver eval --model omlx/mlx-community/Llama-3.2-3B-Instruct-4bit --set heldout --seed 42
 wordle-solver eval --model omniroute/your-model --games 10 --out router.jsonl
 ```
 
@@ -57,7 +59,7 @@ Model identifiers split at the first slash only.
 ## Turns, rerouting and transcripts
 
 Replies accept a single five-letter word (optionally quoted) or a JSON
-object with a guess field. Ambiguous prose is malformed. Malformed replies,
+object with a guess field, optionally inside one Markdown code fence. Ambiguous prose is malformed. Malformed replies,
 unknown words and Hard Mode violations waste a turn without adding feedback.
 Request failures also waste a turn and are recorded; a recognised chat/decision
 model mismatch stops the run instead. Hard Mode retains greens
@@ -68,7 +70,9 @@ from the requested model marks the entire game as rerouted and excludes it
 from eligible and solved totals, even if the provider uses an alias. Missing
 model fields cannot establish whether routing occurred.
 
-The output path is created exclusively so existing runs are preserved.
+Without `--out`, each run writes a new file named after the provider, model
+and start time in the `evals` folder beside the saved player data. The
+output path is created exclusively so existing runs are preserved.
 JSON lines begin with a `run` record (provider, credential-free base URL,
 model, effective settings, seed, UTC date and tool version), followed by
 `game` records and a final `summary` with the rerouted count. Each game has
@@ -89,16 +93,20 @@ choose from supplied options. Compare these kinds only with both using
 `--options candidates`. Free-generation scores measure a different task:
 filtering provides information and capping can omit the answer.
 
-Providers have a `kind` of `chat` (default) or `systemone`. oMLX remains one
-provider serving both APIs. Use `--kind` per run or save a default with
-`providers add omlx --base-url http://127.0.0.1:8000/v1 --kind systemone`.
-The `eval.kind` setting accepts either kind; empty means inherit the provider.
-A chat HTTP 400 identifying a decision model stops with a suggestion to use
-`--kind systemone`; it never switches adapters or retries silently.
+Built-in providers, and providers saved without `--kind`, detect the kind
+per model. Requests start with the chat adapter. If the first chat request
+of a run gets an HTTP 400 identifying a decision model, nothing has been
+scored yet: the partial transcript is deleted, a notice goes to stderr, the
+run restarts with `--kind systemone` and candidate options, and the run
+record sets `kind_detected`. This happens at most once per run and never
+after a game has been scored. An explicit kind, from `--kind`, the
+`eval.kind` setting or a provider saved with `--kind`, is never changed: a
+chat run against a decision model stops with a suggestion instead.
+`--kind systemone` alone implies `--options candidates`.
 
 ```sh
-wordle-solver eval --model omlx/clef-flash-4bit --kind systemone --options candidates --games 3 --seed 42 --out clef.jsonl
-wordle-solver eval --model omlx/clef-flash-4bit --kind systemone --options candidates --max-options 64 --distractors 4 --games 3 --seed 42 --out clef-distractors.jsonl
+wordle-solver eval --model omlx/clef-flash-4bit --games 3 --seed 42
+wordle-solver eval --model omlx/clef-flash-4bit --max-options 64 --distractors 4 --games 3 --seed 42
 ```
 
 SystemOne requires candidates mode. Each turn filters the full valid vocabulary
@@ -115,8 +123,13 @@ The request timeout applies to both; durations include HTTP overhead.
 
 For eligible, non-rerouted games, decision metrics report mean true-answer
 probability and mean natural-log loss only when the answer was offered.
-Uniform loss is log(option count). Frequency-weighted loss uses subtitle
-counts plus one per offered word, normalised over that list. All losses
+Uniform loss is log(option count). Frequency-weighted loss weights each
+offered word by the solver's familiarity score, (ln(1 + subtitle count) + 1)³,
+normalised over that list. Raw subtitle counts were tried first and scored
+worse than uniform on the answer list (4.67 against 4.16 nats with 64 options),
+because a few very common words took nearly all the weight; familiarity scores
+3.41. On the held-out set, whose words are rare by construction, every
+frequency prior is worse than uniform, so compare it only within a set. All losses
 use the same turns; lower is better. Zero probability is floored at 1e-15
 for finite JSON. The qualifying turn count is reported; zero observations
 means zero aggregates are unavailable, not perfect scores. Inconsistency rate
