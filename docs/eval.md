@@ -2,7 +2,7 @@
 
 The harness measures six-turn Wordle play from colour feedback. It records
 wins, attempts, wasted turns, tokens reported by the server and elapsed time.
-It makes one chat completion request per turn, with no silent retries.
+It makes one chat or decision request per turn, with no silent retries.
 
 ## Answer sets and contamination
 
@@ -59,7 +59,8 @@ Model identifiers split at the first slash only.
 Replies accept a single five-letter word (optionally quoted) or a JSON
 object with a guess field. Ambiguous prose is malformed. Malformed replies,
 unknown words and Hard Mode violations waste a turn without adding feedback.
-Request failures also waste a turn and are recorded. Hard Mode retains greens
+Request failures also waste a turn and are recorded; a recognised chat/decision
+model mismatch stops the run instead. Hard Mode retains greens
 and revealed letter counts, using the engine's HardValid rule.
 
 Every response's reported model is retained. Any nonempty model differing
@@ -80,3 +81,55 @@ lack its summary. Stdout shows eligible games, wins and rerouting counts.
 ## Results
 
 No model runs have been authorised for publication. Results are empty.
+
+## Decision models and candidate options
+
+Chat models generate a word; SystemOne decision models (Clef, Jev and Nimble)
+choose from supplied options. Compare these kinds only with both using
+`--options candidates`. Free-generation scores measure a different task:
+filtering provides information and capping can omit the answer.
+
+Providers have a `kind` of `chat` (default) or `systemone`. oMLX remains one
+provider serving both APIs. Use `--kind` per run or save a default with
+`providers add omlx --base-url http://127.0.0.1:8000/v1 --kind systemone`.
+The `eval.kind` setting accepts either kind; empty means inherit the provider.
+A chat HTTP 400 identifying a decision model stops with a suggestion to use
+`--kind systemone`; it never switches adapters or retries silently.
+
+```sh
+wordle-solver eval --model omlx/clef-flash-4bit --kind systemone --options candidates --games 3 --seed 42 --out clef.jsonl
+wordle-solver eval --model omlx/clef-flash-4bit --kind systemone --options candidates --max-options 64 --distractors 4 --games 3 --seed 42 --out clef-distractors.jsonl
+```
+
+SystemOne requires candidates mode. Each turn filters the full valid vocabulary
+by the history, caps consistent words at `--max-options` (default 64), then
+adds up to `--distractors N` inconsistent valid words and shuffles. No
+inconsistent words exist before clues. Sampling uses the run seed plus turn
+number and never consults the answer. Both adapters receive rules and plain-text
+colour history without strategy recommendations. Each attempt records the exact
+options; out-of-list choices are malformed. Consistent repeats remain allowed.
+
+SystemOne replies retain confidence, probabilities and `usage.input_tokens`;
+chat retains total tokens. Temperature and max-tokens affect chat only.
+The request timeout applies to both; durations include HTTP overhead.
+
+For eligible, non-rerouted games, decision metrics report mean true-answer
+probability and mean natural-log loss only when the answer was offered.
+Uniform loss is log(option count). Frequency-weighted loss uses subtitle
+counts plus one per offered word, normalised over that list. All losses
+use the same turns; lower is better. Zero probability is floored at 1e-15
+for finite JSON. The qualifying turn count is reported; zero observations
+means zero aggregates are unavailable, not perfect scores. Inconsistency rate
+divides inconsistent valid choices by all valid offered choices, including
+Hard Mode violations, excluding malformed replies and failed requests.
+Probabilities must cover the options, lie in [0,1], and sum to one within
+0.01 to allow rounded server values.
+
+The [Clef MLX README](https://huggingface.co/mlx-community/clef-flash-4bit/blob/main/README.md)
+documents a 16,384-token input budget, default state truncation and sequential
+requests. The adapter sends `truncate: false`; servers must honour this extension
+to guarantee history is preserved. Its reference latencies for 4-bit Flash on
+an M5 Max are about 0.31 seconds at 1k tokens and 7 seconds at 16k. These are
+measurements, not guarantees or time limits for oMLX or other hardware. Longer
+states and option schemas increase tokens and latency; an option cap alone
+does not guarantee a request fits.

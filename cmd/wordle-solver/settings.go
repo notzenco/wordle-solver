@@ -24,6 +24,7 @@ type configFile struct {
 
 var settingFlags = map[string]string{
 	"max": "max", "sloppy": "sloppy", "hard": "hard", "target": "target", "strategy": "strategy", "copy": "copy",
+	"eval.kind": "kind", "eval.options": "options", "eval.max-options": "max-options", "eval.distractors": "distractors",
 	"eval.model": "model", "eval.games": "games", "eval.set": "set", "eval.seed": "seed",
 	"eval.temperature": "temperature", "eval.max-tokens": "max-tokens", "eval.timeout": "timeout", "eval.out": "out",
 	"eval.base-url": "base-url", "eval.api-key-env": "api-key-env",
@@ -50,6 +51,9 @@ func loadConfig() (configFile, error) {
 	for n, p := range c.Providers {
 		if !providerName.MatchString(n) {
 			return c, fmt.Errorf("invalid provider name in config")
+		}
+		if err := validKind(p.Kind); err != nil {
+			return c, err
 		}
 		if err := validBase(p.BaseURL); err != nil {
 			return c, err
@@ -97,6 +101,17 @@ func validateSetting(k, v string) error {
 	}
 	bad := func() error { return fmt.Errorf("invalid value for %s", k) }
 	switch k {
+	case "eval.kind":
+		return validKind(v)
+	case "eval.options":
+		if v != "free" && v != "candidates" {
+			return bad()
+		}
+	case "eval.max-options", "eval.distractors":
+		n, e := strconv.Atoi(v)
+		if e != nil || n < 0 || k == "eval.max-options" && n == 0 {
+			return bad()
+		}
 	case "hard", "copy":
 		_, e := strconv.ParseBool(v)
 		return e

@@ -39,6 +39,9 @@ options for every command:
   -sloppy P   chance of a human slip per guess with turns to spare (default 0.2)
   -copy       copy the share grid to the clipboard
   -seed N     make choices reproducible
+  -kind KIND  chat or systemone (default provider kind)
+  -options MODE free or candidates (systemone requires candidates)
+  -max-options N candidate cap (default 64); -distractors N inconsistent choices
   -model ID   eval provider/model (or bare model with -base-url)
   -games N    eval games (default 10); -set answers|heldout
   -temperature N  eval sampling temperature (default 0)
@@ -88,6 +91,10 @@ func main() {
 	force := fs.Bool("force", false, "")
 	home := fs.String("home", "", "")
 	showVersion := fs.Bool("version", false, "")
+	fs.String("kind", "", "")
+	fs.String("options", "free", "")
+	fs.Int("max-options", 64, "")
+	fs.Int("distractors", 0, "")
 	fs.String("model", "", "")
 	fs.Int("games", 10, "")
 	fs.String("set", "answers", "")

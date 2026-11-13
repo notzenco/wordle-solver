@@ -3,23 +3,28 @@ package eval
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/notzenco/wordle-solver/internal/wordle"
 	"math/rand/v2"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 )
 
 type Reply struct {
-	Text   string
-	Model  string
-	Tokens int
+	Text          string
+	Model         string
+	Tokens        int
+	Confidence    float64
+	Probabilities map[string]float64
 }
 type Observation struct {
 	History  []wordle.Turn
 	Attempts int
 	Hard     bool
+	Options  []string
 }
 type Player interface {
 	Guess(Observation) (Reply, error)
@@ -84,11 +89,14 @@ func Sample(set string, n int, seed uint64) []string {
 }
 
 type Attempt struct {
-	Reply    Reply
-	Guess    string
-	Pattern  string
-	Problem  string
-	Duration time.Duration
+	Reply        Reply
+	Guess        string
+	Pattern      string
+	Problem      string
+	Duration     time.Duration
+	Options      []string
+	Metrics      *Metrics
+	Inconsistent bool
 }
 type Result struct {
 	Answer           string
@@ -105,9 +113,16 @@ type Result struct {
 	Duration         time.Duration
 	Rerouted         bool
 	Attempts         []Attempt
+	Error            string
 }
 
 func Play(p Player, answer, model string, hard bool) Result {
+	return PlayWithOptions(p, answer, model, hard, PlayOptions{})
+}
+
+var ErrDecisionModel = errors.New("model is not a chat model; use --kind systemone --options candidates")
+
+func PlayWithOptions(p Player, answer, model string, hard bool, opts PlayOptions) Result {
 	start := time.Now()
 	r := Result{Answer: answer, BaselineStrategy: "entropy"}
 	st, _ := wordle.StrategyByName("entropy")
@@ -125,8 +140,12 @@ func Play(p Player, answer, model string, hard bool) Result {
 	history := []wordle.Turn{}
 	for turn := 0; turn < 6; turn++ {
 		t := time.Now()
-		reply, err := p.Guess(Observation{append([]wordle.Turn(nil), history...), turn, hard})
-		a := Attempt{Reply: reply, Duration: time.Since(t)}
+		var offered []string
+		if opts.Candidates {
+			offered = Options(history, opts.MaxOptions, opts.Distractors, opts.Seed+uint64(turn))
+		}
+		reply, err := p.Guess(Observation{History: append([]wordle.Turn(nil), history...), Attempts: turn, Hard: hard, Options: offered})
+		a := Attempt{Reply: reply, Duration: time.Since(t), Options: offered, Metrics: Measure(answer, offered, reply.Probabilities)}
 		r.Tokens += reply.Tokens
 		r.Guesses++
 		if reply.Model != "" && reply.Model != model {
@@ -134,10 +153,11 @@ func Play(p Player, answer, model string, hard bool) Result {
 		}
 		guess, e := Parse(reply.Text)
 		a.Guess = guess
+		a.Inconsistent = valid[guess] && len(wordle.Filter([]string{guess}, history)) == 0
 		switch {
 		case err != nil:
 			a.Problem = "request failed"
-		case e != nil:
+		case e != nil || opts.Candidates && !slices.Contains(offered, guess):
 			r.Malformed++
 			a.Problem = "malformed"
 		case !valid[guess]:
@@ -152,6 +172,10 @@ func Play(p Player, answer, model string, hard bool) Result {
 			r.Solved = a.Pattern == wordle.Solved
 		}
 		r.Attempts = append(r.Attempts, a)
+		if errors.Is(err, ErrDecisionModel) {
+			r.Error = ErrDecisionModel.Error()
+			break
+		}
 		if r.Solved {
 			break
 		}

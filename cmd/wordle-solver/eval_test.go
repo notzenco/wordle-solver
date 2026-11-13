@@ -18,7 +18,7 @@ func TestChatAdapter(t *testing.T) {
 		w.Write([]byte(`{"model":"routed","choices":[{"message":{"content":"raise"}}],"usage":{"total_tokens":12}}`))
 	}))
 	defer s.Close()
-	p := chatPlayer{provider{s.URL, "TEST_API_KEY"}, "org/model", 0, 64, time.Second}
+	p := chatPlayer{provider{s.URL, "TEST_API_KEY", ""}, "org/model", 0, 64, time.Second}
 	r, e := p.Guess(modeleval.Observation{})
 	if e != nil || r.Model != "routed" || r.Tokens != 12 {
 		t.Fatal(r, e)
