@@ -1,6 +1,7 @@
 package player
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -17,6 +18,9 @@ func LoadMine(dir string) (map[int]Game, error) {
 	}
 	if games == nil {
 		games = map[int]Game{}
+	}
+	if err := checkGames(games); err != nil {
+		return nil, fmt.Errorf("%s: %w", filepath.Join(dir, mineFile), err)
 	}
 	return games, nil
 }

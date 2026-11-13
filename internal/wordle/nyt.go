@@ -48,7 +48,7 @@ func FetchPuzzle(ctx context.Context, baseURL string, day time.Time) (Puzzle, er
 	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
 		return p, fmt.Errorf("reading puzzle for %s: %w", day.Format(time.DateOnly), err)
 	}
-	if len(p.Solution) != 5 {
+	if !IsWord(p.Solution) {
 		return p, fmt.Errorf("unexpected solution %q for %s", p.Solution, day.Format(time.DateOnly))
 	}
 	return p, nil

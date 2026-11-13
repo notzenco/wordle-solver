@@ -100,3 +100,12 @@ func TestEvalNeedsAModel(t *testing.T) {
 		t.Fatalf("code %d, stderr %q", code, errOut)
 	}
 }
+
+func TestSimRejectsNonLetters(t *testing.T) {
+	for _, w := range []string{"12345", "ab1de", "CRANE!"} {
+		code, _, errOut := run(t, "sim", w)
+		if code != 2 || !strings.Contains(errOut, "five-letter") {
+			t.Errorf("sim %s: code %d, %q", w, code, errOut)
+		}
+	}
+}
