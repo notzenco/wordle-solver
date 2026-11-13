@@ -98,7 +98,7 @@ func (m *modelSuggester) suggest(history []wordle.Turn, hard bool) (string, stri
 		guess, err := modeleval.Parse(reply.Text)
 		switch {
 		case err != nil:
-			return "", "", fmt.Errorf("unreadable reply %q", reply.Text)
+			return "", "", fmt.Errorf("unreadable reply %q", redact(m.provider, reply.Text))
 		case !m.valid[guess]:
 			return "", "", fmt.Errorf("%s is not a valid word", strings.ToUpper(guess))
 		case hard && !wordle.HardValid(guess, history):
@@ -242,6 +242,7 @@ func autoClues(by string, m *modelSuggester, p puzzle, opts options) {
 		fmt.Fprintf(stdout, "%s plays from the colours alone through the eval harness; it never sees the answer.\n\n", m.model)
 		r := m.play(p.answer, opts.hard)
 		for _, a := range r.Attempts {
+			a.Reply.Text = redact(m.provider, a.Reply.Text)
 			if a.Pattern != "" {
 				turns = append(turns, wordle.Turn{Guess: a.Guess, Pattern: a.Pattern})
 				fmt.Fprintln(stdout, tiles(a.Guess, a.Pattern))

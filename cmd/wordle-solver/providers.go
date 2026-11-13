@@ -64,6 +64,18 @@ func keyStatus(p provider) string {
 	return "unset"
 }
 
+// redact hides the provider's API key in text a server sent back, which a
+// misbehaving server could echo.
+func redact(p provider, s string) string {
+	if p.KeyEnv == "" {
+		return s
+	}
+	if key := os.Getenv(p.KeyEnv); key != "" {
+		return strings.ReplaceAll(s, key, "[redacted]")
+	}
+	return s
+}
+
 // keyColumn describes a provider's key without revealing it.
 func keyColumn(p provider) string {
 	if p.KeyEnv == "" {
