@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -102,7 +103,8 @@ func TestSelfUpdate(t *testing.T) {
 		if data, _ := os.ReadFile(exe); string(data) != "new binary" {
 			t.Errorf("%s: executable holds %q", goos, data)
 		}
-		if info, _ := os.Stat(exe); goos != "windows" && info.Mode().Perm()&0o100 == 0 {
+		// Windows file systems have no execute bit to check.
+		if info, _ := os.Stat(exe); goos != "windows" && runtime.GOOS != "windows" && info.Mode().Perm()&0o100 == 0 {
 			t.Errorf("%s: new executable isn't executable: %v", goos, info.Mode())
 		}
 	}
