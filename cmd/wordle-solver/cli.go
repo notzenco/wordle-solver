@@ -52,6 +52,7 @@ var allOptions = []option{
 	{"n", "n", "N", "0", "int", "play N random answers instead of all of them", false},
 	{"strategy", "strategy", "NAME", "", "string", "benchmark a guess strategy instead of the player model; NAME is one of the strategies below or all", true},
 
+	{"guesses", "guesses", "POOL", "answers", "string", "words a strategy may guess: answers (the answer list) or all (every valid word, as most published solvers allow)", false},
 	{"top", "top", "N", "5", "int", "how many guesses to list", false},
 	{"json", "json", "", "false", "bool", "print JSON instead of a table, for scripts", false},
 	{"y", "y", "", "false", "bool", "delete without asking", false},
@@ -161,7 +162,7 @@ var commands = []*command{
 		examples: []string{"wordle-solver stats", "wordle-solver stats --mine"}, run: runStats},
 	{name: "bench", group: "Analyse", summary: "Benchmark the player model, or compare guess strategies",
 		help:     "Without --strategy, plays every answer with the human-like player model. With --strategy,\nplays every answer with that strategy; 'all' runs each in normal and Hard Mode.",
-		options:  []string{"strategy", "n", "max", "target", "hard", "sloppy", "seed", "json"},
+		options:  []string{"strategy", "guesses", "n", "max", "target", "hard", "sloppy", "seed", "json"},
 		examples: []string{"wordle-solver bench --strategy all", "wordle-solver bench --strategy entropy --hard", "wordle-solver bench -n 200 --seed 1"},
 		run:      runBench},
 	{name: "eval", group: "Models", args: "--model PROVIDER/MODEL", summary: "Score a model's games against the entropy strategy",

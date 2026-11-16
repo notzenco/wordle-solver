@@ -41,21 +41,7 @@ func main() {
 	readme := flag.String("readme", "README.md", "README whose headline table to rewrite")
 	flag.Parse()
 
-	var runs []run
-	for _, hard := range []bool{false, true} {
-		for _, st := range wordle.Strategies {
-			r := wordle.Benchmark(st, hard, wordle.Answers)
-			var failed []string
-			for _, g := range r.Games {
-				if g.Turns[len(g.Turns)-1].Pattern != wordle.Solved {
-					failed = append(failed, strings.ToUpper(g.Answer))
-				}
-			}
-			slices.Sort(failed)
-			runs = append(runs, run{st.Name, hard, r.Opener, len(r.Games), r.Wins, r.Failed, r.Mean, r.Runtime.Seconds(), r.Positions, failed})
-			fmt.Fprintf(os.Stderr, "%-9s hard=%-5v mean %.3f failed %d (%.2fs)\n", st.Name, hard, r.Mean, r.Failed, r.Runtime.Seconds())
-		}
-	}
+	runs, allRuns := benchmark(false), benchmark(true)
 
 	data, err := json.MarshalIndent(map[string]any{
 		"command":     "go run ./tools/report",
@@ -65,6 +51,9 @@ func main() {
 		"answers":     len(wordle.Answers),
 		"max_guesses": 6,
 		"runs":        runs,
+		// The same strategies allowed to guess any valid word, as most
+		// published solvers are; answers are still the answer list.
+		"runs_all_guesses": allRuns,
 	}, "", "  ")
 	check(err)
 	check(os.WriteFile(filepath.Join(*docs, "results.json"), append(data, '\n'), 0o644))
@@ -84,6 +73,7 @@ func main() {
 		"headline":    headlineTable(runs),
 		"openers":     openersTable(runs),
 		"failures":    failuresList(runs),
+		"all-guesses": resultsTable(allRuns),
 		"environment": environment(),
 	} {
 		out = replaceSection(out, name, body)
@@ -93,6 +83,27 @@ func main() {
 	doc, err = os.ReadFile(*readme)
 	check(err)
 	check(os.WriteFile(*readme, []byte(replaceSection(string(doc), "headline", headlineTable(runs))), 0o644))
+}
+
+// benchmark plays every strategy in both modes, guessing from the answers
+// or, with all, from every valid word.
+func benchmark(all bool) []run {
+	var runs []run
+	for _, hard := range []bool{false, true} {
+		for _, st := range wordle.Strategies {
+			r := wordle.BenchmarkGuesses(st, hard, wordle.Answers, all)
+			var failed []string
+			for _, g := range r.Games {
+				if g.Turns[len(g.Turns)-1].Pattern != wordle.Solved {
+					failed = append(failed, strings.ToUpper(g.Answer))
+				}
+			}
+			slices.Sort(failed)
+			runs = append(runs, run{st.Name, hard, r.Opener, len(r.Games), r.Wins, r.Failed, r.Mean, r.Runtime.Seconds(), r.Positions, failed})
+			fmt.Fprintf(os.Stderr, "%-9s hard=%-5v all=%-5v mean %.3f failed %d (%.2fs)\n", st.Name, hard, all, r.Mean, r.Failed, r.Runtime.Seconds())
+		}
+	}
+	return runs
 }
 
 func check(err error) {

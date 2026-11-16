@@ -358,3 +358,35 @@ func TestRankListsTheBestGuessesFirst(t *testing.T) {
 		t.Fatalf("candidates %v don't all fit", cands)
 	}
 }
+
+// With every valid word allowed, the scoring strategies may guess words that
+// can't be the answer, and every guess must still be legal.
+func TestBenchmarkWithAllGuesses(t *testing.T) {
+	answers := Answers[:150]
+	for _, name := range []string{"entropy", "minimax", "planner"} {
+		st, _ := StrategyByName(name)
+		for _, hard := range []bool{false, true} {
+			r := BenchmarkGuesses(st, hard, answers, true)
+			outside := 0
+			for _, g := range r.Games {
+				for i, turn := range g.Turns {
+					if !IsValid(turn.Guess) {
+						t.Fatalf("%s guessed %s, not a valid word", name, turn.Guess)
+					}
+					if hard && !HardValid(turn.Guess, g.Turns[:i]) {
+						t.Fatalf("%s hard: %s breaks Hard Mode after %v", name, turn.Guess, g.Turns[:i])
+					}
+					if !InAnswers(turn.Guess) {
+						outside++
+					}
+				}
+			}
+			if !hard && outside == 0 {
+				t.Errorf("%s never used a non-answer guess", name)
+			}
+			if r.Failed > len(answers)/20 {
+				t.Errorf("%s hard=%v failed %d of %d", name, hard, r.Failed, len(answers))
+			}
+		}
+	}
+}

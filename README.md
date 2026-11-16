@@ -79,6 +79,7 @@ everything with:
 ```sh
 go run ./tools/report                           # rewrites docs/ and this table
 go run ./cmd/wordle-solver bench --strategy all  # the same comparison in the terminal
+go run ./cmd/wordle-solver bench --strategy all --guesses all  # guessing from every valid word
 ```
 
 ## Install
