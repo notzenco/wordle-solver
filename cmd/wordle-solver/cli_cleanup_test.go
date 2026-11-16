@@ -74,3 +74,9 @@ func TestProviderErrorsSayWhatWentWrong(t *testing.T) {
 		t.Fatalf("transport error: %v", err)
 	}
 }
+
+func TestEvalSetAcceptsMatched(t *testing.T) {
+	if err := validateSetting("eval.set", "matched"); err != nil {
+		t.Fatal(err)
+	}
+}

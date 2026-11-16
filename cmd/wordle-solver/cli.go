@@ -65,7 +65,7 @@ var allOptions = []option{
 
 	{"eval.model", "model", "PROVIDER/MODEL", "", "string", "model to evaluate; the provider is the text before the first slash", true},
 	{"eval.games", "games", "N", "10", "uint", "number of games", true},
-	{"eval.set", "set", "SET", "answers", "string", "answers (the official list) or heldout (valid words never used as answers)", true},
+	{"eval.set", "set", "SET", "answers", "string", "answers (the official list), heldout (valid words never used as answers) or matched (held-out words as familiar as the answers the same seed draws)", true},
 	{"eval.seed", "seed", "N", "0", "uint", "seed for the answer sample and offered options", true},
 	{"eval.kind", "kind", "KIND", "", "string", "chat or systemone (default: the provider's kind, switching to systemone when the server says the model is a decision model)", true},
 	{"eval.options", "options", "MODE", "", "string", "free or candidates (default: free for chat, candidates for systemone)", true},
