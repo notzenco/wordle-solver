@@ -92,6 +92,16 @@ func providerNames(c configFile) []string {
 	sort.Strings(n)
 	return n
 }
+func providerSource(c configFile, n string) string {
+	if _, ok := c.Providers[n]; !ok {
+		return "built-in"
+	}
+	if _, ok := builtins[n]; ok {
+		return "saved (overrides built-in)"
+	}
+	return "saved"
+}
+
 func providersCommand(c *cmdCtx) error {
 	sub, args := "list", c.args
 	if len(args) > 0 {
@@ -104,20 +114,25 @@ func providersCommand(c *cmdCtx) error {
 			}
 		}
 	}
+	if c.bool("json") && sub != "list" {
+		return usageError("--json only applies to 'providers list'")
+	}
 	switch {
+	case sub == "list" && len(args) == 0 && c.bool("json"):
+		// Names the key's environment variable and whether it is set, never the key.
+		out := []map[string]any{}
+		for _, n := range providerNames(c.config) {
+			p := allProviders(c.config)[n]
+			out = append(out, map[string]any{"name": n, "base_url": p.BaseURL, "api_key_env": p.KeyEnv,
+				"key_set": keyStatus(p) == "set", "kind": providerKind(p), "source": providerSource(c.config, n)})
+		}
+		return writeJSONOut(out)
 	case sub == "list" && len(args) == 0:
 		tw := tabwriter.NewWriter(stdout, 0, 0, 3, ' ', 0)
 		fmt.Fprintln(tw, "NAME\tBASE URL\tKEY\tKIND\tSOURCE")
 		for _, n := range providerNames(c.config) {
 			p := allProviders(c.config)[n]
-			src := "built-in"
-			if _, ok := c.config.Providers[n]; ok {
-				src = "saved"
-				if _, ok := builtins[n]; ok {
-					src = "saved (overrides built-in)"
-				}
-			}
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", n, p.BaseURL, keyColumn(p), kindColumn(p), src)
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", n, p.BaseURL, keyColumn(p), kindColumn(p), providerSource(c.config, n))
 		}
 		return tw.Flush()
 	case sub == "remove" && len(args) == 1:

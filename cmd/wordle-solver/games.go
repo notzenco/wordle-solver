@@ -191,7 +191,7 @@ func syncAnswers(store *player.Store) {
 	}
 }
 
-func bench(rng *rand.Rand, opts options, n int) {
+func bench(rng *rand.Rand, opts options, n int, asJSON bool) {
 	answers := wordle.Answers
 	if n > 0 && n < len(answers) {
 		answers = make([]string, n)
@@ -210,6 +210,13 @@ func bench(rng *rand.Rand, opts options, n int) {
 			counts[7]++
 		}
 	}
+	if asJSON {
+		var wins [7]int
+		copy(wins[1:], counts[1:7])
+		writeJSONOut(map[string]any{"games": len(answers), "wins_by_guesses": wins, "failed": counts[7],
+			"mean_guesses_when_solved": float64(solvedTurns) / float64(max(1, len(answers)-counts[7]))})
+		return
+	}
 	total := float64(len(answers))
 	for turn := 1; turn <= 7; turn++ {
 		label := fmt.Sprint(turn)
@@ -226,7 +233,7 @@ func bench(rng *rand.Rand, opts options, n int) {
 
 // benchStrategies plays every answer with the named strategy, or with every
 // strategy in both modes for "all", and prints one row per run.
-func benchStrategies(name string, hard bool) {
+func benchStrategies(name string, hard, asJSON bool) {
 	strategies := wordle.Strategies
 	modes := []bool{false, true}
 	if name != "all" {
@@ -235,6 +242,27 @@ func benchStrategies(name string, hard bool) {
 			fail(fmt.Sprintf("unknown strategy %q; run 'wordle-solver -h' for the list", name))
 		}
 		strategies, modes = []wordle.Strategy{st}, []bool{hard}
+	}
+	if asJSON {
+		// The same fields as docs/results.json, so scripts can read either.
+		runs := []map[string]any{}
+		for _, hard := range modes {
+			for _, st := range strategies {
+				r := wordle.Benchmark(st, hard, wordle.Answers)
+				failed := []string{}
+				for _, g := range r.Games {
+					if g.Turns[len(g.Turns)-1].Pattern != wordle.Solved {
+						failed = append(failed, strings.ToUpper(g.Answer))
+					}
+				}
+				slices.Sort(failed)
+				runs = append(runs, map[string]any{"strategy": r.Strategy, "hard": hard, "opener": r.Opener, "games": len(r.Games),
+					"wins_by_guesses": r.Wins, "failed": r.Failed, "mean_guesses_when_solved": r.Mean,
+					"runtime_seconds": r.Runtime.Seconds(), "positions_decided": r.Positions, "failed_answers": failed})
+			}
+		}
+		writeJSONOut(runs)
+		return
 	}
 	fmt.Fprintf(stdout, "%-9s %-6s %-6s %5s %6s %6s %6s %6s %6s %6s %7s %8s\n",
 		"strategy", "mode", "opener", "mean", "1", "2", "3", "4", "5", "6", "failed", "runtime")

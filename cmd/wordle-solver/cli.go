@@ -52,6 +52,7 @@ var allOptions = []option{
 	{"n", "n", "N", "0", "int", "play N random answers instead of all of them", false},
 	{"strategy", "strategy", "NAME", "", "string", "benchmark a guess strategy instead of the player model; NAME is one of the strategies below or all", true},
 
+	{"json", "json", "", "false", "bool", "print JSON instead of a table, for scripts", false},
 	{"y", "y", "", "false", "bool", "delete without asking", false},
 	{"force", "force", "", "false", "bool", "reinstall even when already up to date", false},
 
@@ -144,11 +145,11 @@ var commands = []*command{
 		options:  solverOptions,
 		examples: []string{"wordle-solver sim crazy", "wordle-solver sim crazy --hard --seed 1"},
 		run:      runSim},
-	{name: "stats", group: "Play", summary: "Show statistics for saved games", options: []string{"mine"},
+	{name: "stats", group: "Play", summary: "Show statistics for saved games", options: []string{"mine", "json"},
 		examples: []string{"wordle-solver stats", "wordle-solver stats --mine"}, run: runStats},
 	{name: "bench", group: "Analyse", summary: "Benchmark the player model, or compare guess strategies",
 		help:     "Without --strategy, plays every answer with the human-like player model. With --strategy,\nplays every answer with that strategy; 'all' runs each in normal and Hard Mode.",
-		options:  []string{"strategy", "n", "max", "target", "hard", "sloppy", "seed"},
+		options:  []string{"strategy", "n", "max", "target", "hard", "sloppy", "seed", "json"},
 		examples: []string{"wordle-solver bench --strategy all", "wordle-solver bench --strategy entropy --hard", "wordle-solver bench -n 200 --seed 1"},
 		run:      runBench},
 	{name: "eval", group: "Models", args: "--model PROVIDER/MODEL", summary: "Score a model's games against the entropy strategy",
@@ -171,7 +172,7 @@ var commands = []*command{
 			"  remove   delete a saved provider; a removed override restores the built-in\n" +
 			"  check    say whether a provider is reachable and how many models it serves\n\n" +
 			"Saved providers keep the name of the key's environment variable, never the key.",
-		options: []string{"provider.base-url", "provider.api-key-env", "provider.kind"},
+		options: []string{"provider.base-url", "provider.api-key-env", "provider.kind", "json"},
 		examples: []string{"wordle-solver providers", "wordle-solver providers check omlx",
 			"wordle-solver providers add box --base-url http://box:8000/v1",
 			"wordle-solver providers add groq --base-url https://api.groq.com/openai/v1 --api-key-env GROQ_API_KEY"},
@@ -183,7 +184,7 @@ var commands = []*command{
 		help: "Each setting comes from, in order: its command-line option, the WORDLE_SOLVER_<KEY>\n" +
 			"environment variable (dots and dashes become underscores), the saved config, then its\n" +
 			"default. 'list' shows each value and where it came from.",
-		options:  []string{"all"},
+		options:  []string{"all", "json"},
 		examples: []string{"wordle-solver settings", "wordle-solver settings set eval.model omlx/clef-flash-4bit", "wordle-solver settings reset --all"},
 		run:      settingsCommand},
 	{name: "sync", group: "Setup", summary: "Download every past answer (once; a few minutes)", run: runSync},
