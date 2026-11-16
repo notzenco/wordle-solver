@@ -147,7 +147,7 @@ var commands = []*command{
 		examples: []string{"wordle-solver stats", "wordle-solver stats --mine"}, run: runStats},
 	{name: "bench", group: "Analyse", summary: "Benchmark the player model, or compare guess strategies",
 		help:     "Without --strategy, plays every answer with the human-like player model. With --strategy,\nplays every answer with that strategy; 'all' runs each in normal and Hard Mode.",
-		options:  append([]string{"strategy", "n"}, solverOptions...),
+		options:  []string{"strategy", "n", "max", "target", "hard", "sloppy", "seed"},
 		examples: []string{"wordle-solver bench --strategy all", "wordle-solver bench --strategy entropy --hard", "wordle-solver bench -n 200 --seed 1"},
 		run:      runBench},
 	{name: "eval", group: "Models", args: "--model PROVIDER/MODEL", summary: "Score a model's games against the entropy strategy",
@@ -186,7 +186,7 @@ var commands = []*command{
 		examples: []string{"wordle-solver settings", "wordle-solver settings set eval.model omlx/clef-flash-4bit", "wordle-solver settings reset --all"},
 		run:      settingsCommand},
 	{name: "sync", group: "Setup", summary: "Download every past answer (once; a few minutes)", run: runSync},
-	{name: "clean", group: "Setup", summary: "Delete your profile, games and cached answers", options: []string{"y"}, run: runClean},
+	{name: "clean", group: "Setup", summary: "Delete your profile, games, cached answers, settings and providers", options: []string{"y"}, run: runClean},
 	{name: "update", group: "Setup", summary: "Install the latest release", options: []string{"force"}, run: runUpdate},
 	{name: "version", group: "Setup", summary: "Print the version", run: runVersion},
 	{name: "help", group: "Setup", args: "[COMMAND]", summary: "Show help for wordle-solver or a command"},
@@ -235,6 +235,17 @@ func (c *cmdCtx) uint(id string) uint64       { n, _ := strconv.ParseUint(c.get(
 func (c *cmdCtx) float(id string) float64     { n, _ := strconv.ParseFloat(c.get(id), 64); return n }
 func (c *cmdCtx) bool(id string) bool         { b, _ := strconv.ParseBool(c.get(id)); return b }
 func (c *cmdCtx) dur(id string) time.Duration { d, _ := time.ParseDuration(c.get(id)); return d }
+
+// unused rejects options given on the command line that the command, as
+// invoked, would ignore; why says when they do apply.
+func (c *cmdCtx) unused(why string, ids ...string) error {
+	for _, id := range ids {
+		if c.set(id) {
+			return usageError(fmt.Sprintf("--%s has no effect here; %s", optionByID(id).flag, why))
+		}
+	}
+	return nil
+}
 
 // set reports whether the option was given on the command line.
 func (c *cmdCtx) set(id string) bool {

@@ -44,7 +44,7 @@ var Openers = []string{
 
 // StrongOpeners are popular openers that split the answers well enough for
 // tight limits;
-// under -max 4 weaker favourites like ADIEU miss about 1 game in 10.
+// under --max 4 weaker favourites like ADIEU miss about 1 game in 10.
 var StrongOpeners = []string{
 	"stare", "slate", "roast", "heart", "trace", "steam", "spare", "react",
 	"later", "crane", "train",

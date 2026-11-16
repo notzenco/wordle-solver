@@ -167,7 +167,7 @@ fewest Hard Mode failures (8, against 12 for entropy), but in normal mode its me
 than the other search strategies, with more games taking five or six
 guesses. Its objective counts guaranteed wins and ignores how many guesses
 a game takes, and it only considers 16 candidate guesses. That makes it a
-good fit for the solver's own use, a tight guess limit (`-max`), where
+good fit for the solver's own use, a tight guess limit (`--max`), where
 finishing within the limit is all that matters.
 
 **Cost.** With decisions cached by position, every strategy plays all 2,315

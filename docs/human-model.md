@@ -48,17 +48,17 @@ strategy's score) and chosen among the better-ranked ones by familiarity.
 People sometimes reuse a letter that is already ruled out, or put a yellow
 letter back in the square where it was yellow. On each guess with at least
 four guesses left, the model makes one such slip with probability 0.2
-(`-sloppy`, from 0 to 1). A slip keeps every green letter and every letter
+(`--sloppy`, from 0 to 1). A slip keeps every green letter and every letter
 known to be in the answer, and makes exactly one mistake. The model picks
 it by familiarity from the 8 slips that would still be most useful. Slips
-never happen in Hard Mode or under a guess limit below six (`-max`), where
+never happen in Hard Mode or under a guess limit below six (`--max`), where
 there is no room for them.
 
 ### The turn it finishes on
 
 People don't all finish on the fastest possible turn. Before each game,
 the model draws a target turn from these weights, cut off at the guess
-limit, or uses `-target` if given:
+limit, or uses `--target` if given:
 
 | Target turn | 2 | 3 | 4 | 5 | 6 |
 | --- | ---: | ---: | ---: | ---: | ---: |

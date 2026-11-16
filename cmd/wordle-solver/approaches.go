@@ -43,6 +43,9 @@ func (a *solverAdvisor) suggest(history []wordle.Turn, hard bool) (string, strin
 		return "", "", errors.New("no word fits every clue")
 	}
 	left := len(wordle.Filter(wordle.Answers, history))
+	if left == 0 {
+		return g, "no listed answer fits; the most familiar word that does", nil
+	}
 	return g, fmt.Sprintf("entropy; %d listed answers fit", left), nil
 }
 
@@ -148,6 +151,8 @@ func topChoices(p map[string]float64, n int) string {
 	return strings.Join(parts, ", ")
 }
 
+const humanOnly = "only the human-like player (--by human) uses it"
+
 // approach reads --by and --model.
 func (c *cmdCtx) approach() (string, *modelSuggester, error) {
 	by := c.get("by")
@@ -156,8 +161,16 @@ func (c *cmdCtx) approach() (string, *modelSuggester, error) {
 		if c.set("model") {
 			return "", nil, usageError("--model needs --by model")
 		}
+		if by == "solver" {
+			if err := c.unused(humanOnly, "max", "target", "sloppy"); err != nil {
+				return "", nil, err
+			}
+		}
 		return by, nil, nil
 	case "model":
+		if err := c.unused(humanOnly, "max", "target", "sloppy"); err != nil {
+			return "", nil, err
+		}
 		spec := c.get("model")
 		if spec == "" {
 			return "", nil, usageError("--by model needs --model PROVIDER/MODEL, or a saved model setting")

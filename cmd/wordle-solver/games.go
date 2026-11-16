@@ -31,7 +31,7 @@ func auto(rng *rand.Rand, opts options, store *player.Store, day time.Time, fres
 	number := wordle.NumberForDate(day)
 	if store != nil && !fresh {
 		if g, ok := store.Game(number); ok {
-			fmt.Fprintf(stdout, "%s(Already played; -fresh plays it again.)\n\n", autoHeader(number, g.Date))
+			fmt.Fprintf(stdout, "%s(Already played; --fresh plays it again.)\n\n", autoHeader(number, g.Date))
 			printGame(thousands(number)+" ", g.Turns, opts.copy)
 			return false
 		}

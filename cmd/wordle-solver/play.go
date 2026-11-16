@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/notzenco/wordle-solver/internal/player"
@@ -102,10 +103,21 @@ func assist(a advisor, p *puzzle, hard bool) {
 	} else {
 		fmt.Fprintln(stdout, "Type the word you played, then the colours the game showed as g/y/b (e.g. bygbb).")
 	}
-	fmt.Fprintln(stdout, "Press Enter on an empty line to take the suggestion.")
+	fmt.Fprintln(stdout, "Press Enter on an empty line to take the suggestion, or type back to undo a word.")
 	fmt.Fprintln(stdout)
+	words := wordle.ValidWords()
 	var history []wordle.Turn
 	suggestion := ""
+	advise := func() {
+		suggestion = ""
+		g, note, err := a.suggest(history, hard)
+		if err != nil {
+			fmt.Fprintf(stdout, "  no suggestion: %v\n", err)
+			return
+		}
+		suggestion = g
+		fmt.Fprintf(stdout, "  try %s  (%s)\n", strings.ToUpper(g), note)
+	}
 	for len(history) < 6 {
 		fmt.Fprintf(stdout, "word %d> ", len(history)+1)
 		if !in.Scan() {
@@ -113,7 +125,25 @@ func assist(a advisor, p *puzzle, hard bool) {
 			return
 		}
 		word := strings.ToLower(strings.TrimSpace(in.Text()))
+		if word == "back" {
+			if len(history) == 0 {
+				fmt.Fprintln(stdout, "  nothing to undo")
+				continue
+			}
+			history = history[:len(history)-1]
+			fmt.Fprintf(stdout, "  Back to word %d.\n", len(history)+1)
+			if len(history) > 0 {
+				advise()
+			} else {
+				suggestion = ""
+			}
+			continue
+		}
 		if word == "" {
+			if suggestion == "" {
+				fmt.Fprintln(stdout, "  type the word you played; suggestions start after your first word")
+				continue
+			}
 			word = suggestion
 		}
 		if err := checkGuess(word, valid, history, hard); err != nil {
@@ -131,10 +161,16 @@ func assist(a advisor, p *puzzle, hard bool) {
 					return
 				}
 				var err error
-				if pattern, err = wordle.ParsePattern(strings.TrimSpace(in.Text())); err == nil {
+				if pattern, err = wordle.ParsePattern(strings.TrimSpace(in.Text())); err != nil {
+					fmt.Fprintln(stdout, "  "+err.Error())
+					continue
+				}
+				// A typo here would otherwise poison every later suggestion.
+				next := append(slices.Clone(history), wordle.Turn{Guess: word, Pattern: pattern})
+				if len(wordle.Filter(words, next)) > 0 {
 					break
 				}
-				fmt.Fprintln(stdout, "  "+err.Error())
+				fmt.Fprintln(stdout, "  No word fits those colours with the earlier ones; check them and type them again.")
 			}
 		}
 		history = append(history, wordle.Turn{Guess: word, Pattern: pattern})
@@ -146,14 +182,7 @@ func assist(a advisor, p *puzzle, hard bool) {
 		if len(history) == 6 {
 			break
 		}
-		g, note, err := a.suggest(history, hard)
-		if err != nil {
-			suggestion = ""
-			fmt.Fprintf(stdout, "  no suggestion: %v\n", err)
-			continue
-		}
-		suggestion = g
-		fmt.Fprintf(stdout, "  try %s  (%s)\n", strings.ToUpper(g), note)
+		advise()
 	}
 	if p != nil {
 		fmt.Fprintf(stdout, "\nThe answer was %s.\n", strings.ToUpper(p.answer))
