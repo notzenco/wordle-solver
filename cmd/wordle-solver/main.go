@@ -266,6 +266,13 @@ func runUpdate(c *cmdCtx) error {
 	if err := c.noArgs(); err != nil {
 		return err
 	}
+	if c.bool("check") {
+		if c.bool("force") {
+			return usageError("--check only reports; it can't be combined with --force")
+		}
+		checkUpdate()
+		return nil
+	}
 	update(c.bool("force"))
 	return nil
 }

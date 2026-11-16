@@ -55,6 +55,7 @@ var allOptions = []option{
 	{"json", "json", "", "false", "bool", "print JSON instead of a table, for scripts", false},
 	{"y", "y", "", "false", "bool", "delete without asking", false},
 	{"force", "force", "", "false", "bool", "reinstall even when already up to date", false},
+	{"check", "check", "", "false", "bool", "only say whether a newer release exists", false},
 
 	{"by", "by", "APPROACH", "human", "string", "human (the human-like player), solver (the entropy strategy, from the colours alone) or model (a model through the eval harness, from the colours alone)", true},
 	{"model", "model", "PROVIDER/MODEL", "", "string", "model for --by model; decision models such as Clef choose from the words that fit", true},
@@ -189,7 +190,7 @@ var commands = []*command{
 		run:      settingsCommand},
 	{name: "sync", group: "Setup", summary: "Download every past answer (once; a few minutes)", run: runSync},
 	{name: "clean", group: "Setup", summary: "Delete your profile, games, cached answers, settings and providers", options: []string{"y"}, run: runClean},
-	{name: "update", group: "Setup", summary: "Install the latest release", options: []string{"force"}, run: runUpdate},
+	{name: "update", group: "Setup", summary: "Install the latest release, or check for one", options: []string{"force", "check"}, run: runUpdate},
 	{name: "version", group: "Setup", summary: "Print the version", run: runVersion},
 	{name: "help", group: "Setup", args: "[COMMAND]", summary: "Show help for wordle-solver or a command"},
 }

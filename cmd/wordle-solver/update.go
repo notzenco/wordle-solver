@@ -24,11 +24,33 @@ func versionString() string {
 	return version
 }
 
+// latestURL is the release endpoint; tests point it at a local server.
+var latestURL = selfupdate.LatestURL
+
+// checkUpdate says whether a newer release exists, without installing it.
+func checkUpdate() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	current := versionString()
+	tag, newer, isRelease, err := selfupdate.Check(ctx, latestURL, current)
+	if err != nil {
+		fail(err.Error())
+	}
+	switch {
+	case !isRelease:
+		fmt.Fprintf(stdout, "This is a development build (%s); the latest release is %s.\n", current, tag)
+	case newer:
+		fmt.Fprintf(stdout, "%s is available (you have %s); 'wordle-solver update' installs it.\n", tag, current)
+	default:
+		fmt.Fprintf(stdout, "wordle-solver %s is the latest version.\n", current)
+	}
+}
+
 func update(force bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	current := versionString()
-	installed, err := selfupdate.Update(ctx, selfupdate.LatestURL, current, executable(), runtime.GOOS, runtime.GOARCH, force)
+	installed, err := selfupdate.Update(ctx, latestURL, current, executable(), runtime.GOOS, runtime.GOARCH, force)
 	if err != nil {
 		fail(err.Error())
 	}

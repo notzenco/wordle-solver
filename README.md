@@ -113,7 +113,8 @@ ln -s "$(command -v wordle-solver)" "$(dirname "$(command -v wordle-solver)")/ws
 
 On Windows, `doskey wsolve=wordle-solver $*` adds it for the current
 console. From a checkout, use `go install ./cmd/wordle-solver`. `wordle-solver
-version` prints your version, and `wordle-solver update` replaces the binary
+version` prints your version, `wordle-solver update --check` says whether a
+newer release exists, and `wordle-solver update` replaces the binary
 with the latest release after checking it against `checksums.txt` (a build
 from a checkout needs `--force`).
 
