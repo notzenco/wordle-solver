@@ -233,7 +233,7 @@ func bench(rng *rand.Rand, opts options, n int, asJSON bool) {
 
 // benchStrategies plays every answer with the named strategy, or with every
 // strategy in both modes for "all", and prints one row per run.
-func benchStrategies(name string, hard, asJSON bool) {
+func benchStrategies(name string, hard, all, asJSON bool) {
 	strategies := wordle.Strategies
 	modes := []bool{false, true}
 	if name != "all" {
@@ -248,7 +248,7 @@ func benchStrategies(name string, hard, asJSON bool) {
 		runs := []map[string]any{}
 		for _, hard := range modes {
 			for _, st := range strategies {
-				r := wordle.Benchmark(st, hard, wordle.Answers)
+				r := wordle.BenchmarkGuesses(st, hard, wordle.Answers, all)
 				failed := []string{}
 				for _, g := range r.Games {
 					if g.Turns[len(g.Turns)-1].Pattern != wordle.Solved {
@@ -268,7 +268,7 @@ func benchStrategies(name string, hard, asJSON bool) {
 		"strategy", "mode", "opener", "mean", "1", "2", "3", "4", "5", "6", "failed", "runtime")
 	for _, hard := range modes {
 		for _, st := range strategies {
-			r := wordle.Benchmark(st, hard, wordle.Answers)
+			r := wordle.BenchmarkGuesses(st, hard, wordle.Answers, all)
 			mode := "normal"
 			if hard {
 				mode = "hard"
@@ -280,5 +280,9 @@ func benchStrategies(name string, hard, asJSON bool) {
 			fmt.Fprintf(stdout, " %7d %7.1fs\n", r.Failed, r.Runtime.Seconds())
 		}
 	}
-	fmt.Fprintf(stdout, "\n%d answers per run.\n", len(wordle.Answers))
+	pool := "the answer list"
+	if all {
+		pool = "every valid word"
+	}
+	fmt.Fprintf(stdout, "\n%d answers per run; guesses from %s.\n", len(wordle.Answers), pool)
 }

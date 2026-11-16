@@ -25,6 +25,26 @@ func committedRuns(t *testing.T) []run {
 	return data.Runs
 }
 
+// committedAllGuessRuns reads the benchmark runs that guessed from every
+// valid word.
+func committedAllGuessRuns(t *testing.T) []run {
+	t.Helper()
+	b, err := os.ReadFile("../../docs/results.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var data struct {
+		Runs []run `json:"runs_all_guesses"`
+	}
+	if err := json.Unmarshal(b, &data); err != nil {
+		t.Fatal(err)
+	}
+	if len(data.Runs) != 10 {
+		t.Fatalf("want 5 strategies in 2 modes guessing from every word, got %d runs", len(data.Runs))
+	}
+	return data.Runs
+}
+
 // readText reads a checked-out file, undoing the CRLF line endings Git may
 // give it on Windows.
 func readText(t *testing.T, path string) string {
@@ -58,6 +78,9 @@ func TestDocsMatchCommittedResults(t *testing.T) {
 		if got := section(t, "../../docs/analysis.md", name); got != want {
 			t.Errorf("docs/analysis.md %s section differs from results.json:\n got %q\nwant %q", name, got, want)
 		}
+	}
+	if all := committedAllGuessRuns(t); section(t, "../../docs/analysis.md", "all-guesses") != resultsTable(all) {
+		t.Errorf("docs/analysis.md all-guesses section differs from results.json")
 	}
 	if got := section(t, "../../README.md", "headline"); got != headlineTable(runs) {
 		t.Errorf("README.md headline differs from results.json")

@@ -29,18 +29,28 @@ type BenchResult struct {
 
 // Play plays one game against answer, as Benchmark would.
 func (st Strategy) Play(answer string, hard bool) []Turn {
-	return st.play(answer, hard, nil)
+	return st.play(answer, hard, false, nil)
 }
 
 // Benchmark plays every answer with st, within six guesses, and reports the
 // results. Answers outside the answer list are not supported.
 func Benchmark(st Strategy, hard bool, answers []string) BenchResult {
+	return BenchmarkGuesses(st, hard, answers, false)
+}
+
+// BenchmarkGuesses is Benchmark with, when all is set, every valid word
+// allowed as a guess, as most published solvers allow; answers stay the
+// answer list.
+func BenchmarkGuesses(st Strategy, hard bool, answers []string, all bool) BenchResult {
 	r := BenchResult{Strategy: st.Name, Hard: hard}
 	cache := map[string]int{}
-	code(0, 0) // build the pattern table outside the timed run
+	code(0, 0) // build the pattern tables outside the timed run
+	if all {
+		code(len(Answers), 0)
+	}
 	start := time.Now()
 	for _, a := range answers {
-		turns := st.play(a, hard, cache)
+		turns := st.play(a, hard, all, cache)
 		r.Games = append(r.Games, Game{a, turns})
 	}
 	r.Runtime = time.Since(start)
@@ -65,9 +75,9 @@ func Benchmark(st Strategy, hard bool, answers []string) BenchResult {
 
 // play runs one game. With a cache it reuses decisions for positions seen
 // in earlier games.
-func (st Strategy) play(answer string, hard bool, cache map[string]int) []Turn {
+func (st Strategy) play(answer string, hard, all bool, cache map[string]int) []Turn {
 	ans := wordIndex[answer]
-	p := &position{hard: hard, max: 6, cands: make([]int, len(Answers))}
+	p := &position{hard: hard, max: 6, all: all, cands: make([]int, len(Answers))}
 	for i := range p.cands {
 		p.cands[i] = i
 	}
@@ -82,7 +92,7 @@ func (st Strategy) play(answer string, hard bool, cache map[string]int) []Turn {
 			}
 		}
 		c := code(g, ans)
-		p.history = append(p.history, Turn{Answers[g], decode(c)})
+		p.history = append(p.history, Turn{guessWord(g), decode(c)})
 		if c == solvedCode {
 			break
 		}
@@ -93,7 +103,7 @@ func (st Strategy) play(answer string, hard bool, cache map[string]int) []Turn {
 			}
 		}
 		p.cands = left
-		key.WriteString(Answers[g] + decode(c))
+		key.WriteString(guessWord(g) + decode(c))
 	}
 	return p.history
 }

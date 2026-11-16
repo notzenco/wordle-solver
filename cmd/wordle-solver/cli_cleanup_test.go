@@ -74,3 +74,12 @@ func TestProviderErrorsSayWhatWentWrong(t *testing.T) {
 		t.Fatalf("transport error: %v", err)
 	}
 }
+
+func TestGuessesNeedsAStrategy(t *testing.T) {
+	if code, _, errOut := run(t, "bench", "--guesses", "all"); code != 2 || !strings.Contains(errOut, "--strategy") {
+		t.Fatalf("code %d, %q", code, errOut)
+	}
+	if code, _, _ := run(t, "bench", "--strategy", "freq", "--guesses", "some"); code != 2 {
+		t.Fatalf("bad pool: code %d", code)
+	}
+}

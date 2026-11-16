@@ -20,7 +20,17 @@ type position struct {
 	history []Turn
 	cands   []int
 	hard    bool
-	max     int // guess limit
+	max     int  // guess limit
+	all     bool // any valid word may be guessed, not just answers
+}
+
+// guesses is how many words p may guess from: the answers, or with all,
+// the whole guess list, which starts with the answers in the same order.
+func (p *position) guesses() int {
+	if p.all {
+		return len(allGuesses())
+	}
+	return len(Answers)
 }
 
 // Strategies are the guess-selection rules compared by bench -strategy.
@@ -60,7 +70,50 @@ var (
 	}()
 )
 
+// allGuesses is every valid word: the answers first, keeping their indices,
+// then the rest alphabetically.
+var allGuesses = sync.OnceValue(func() []string {
+	words := append([]string(nil), Answers...)
+	for _, w := range ValidWords() {
+		if !InAnswers(w) {
+			words = append(words, w)
+		}
+	}
+	return words
+})
+
+var guessIndex = sync.OnceValue(func() map[string]int {
+	m := map[string]int{}
+	for i, w := range allGuesses() {
+		m[w] = i
+	}
+	return m
+})
+
+// extraTable holds the patterns of the non-answer guesses, built only when
+// a benchmark allows them.
+var extraTable = sync.OnceValue(func() []uint8 {
+	words, n := allGuesses(), len(Answers)
+	t := make([]uint8, (len(words)-n)*n)
+	for g := n; g < len(words); g++ {
+		for a := range n {
+			t[(g-n)*n+a] = uint8(scoreCode(words[g], Answers[a]))
+		}
+	}
+	return t
+})
+
+func guessWord(g int) string {
+	if g < len(Answers) {
+		return Answers[g]
+	}
+	return allGuesses()[g]
+}
+
 func code(guess, answer int) int {
+	if n := len(Answers); guess >= n {
+		return int(extraTable()[(guess-n)*n+answer])
+	}
 	tableOnce.Do(func() {
 		n := len(Answers)
 		table = make([]uint8, n*n)
@@ -134,7 +187,7 @@ func byScore(score func(b *[243]int, n int) (float64, float64)) func(*position) 
 		}
 		best, bestCand := -1, false
 		var best1, best2 float64
-		for g := range Answers {
+		for g := range p.guesses() {
 			if !allowedGuess(g, p) {
 				continue
 			}
@@ -143,10 +196,11 @@ func byScore(score func(b *[243]int, n int) (float64, float64)) func(*position) 
 				b[code(g, a)]++
 			}
 			s1, s2 := score(&b, len(p.cands))
+			cand := g < len(isCand) && isCand[g]
 			better := best < 0 || s1 < best1-eps ||
-				(s1 <= best1+eps && (s2 < best2-eps || (s2 <= best2+eps && isCand[g] && !bestCand)))
+				(s1 <= best1+eps && (s2 < best2-eps || (s2 <= best2+eps && cand && !bestCand)))
 			if better {
-				best, bestCand, best1, best2 = g, isCand[g], s1, s2
+				best, bestCand, best1, best2 = g, cand, s1, s2
 			}
 		}
 		return best
@@ -157,11 +211,11 @@ func byScore(score func(b *[243]int, n int) (float64, float64)) func(*position) 
 // guess that ignores a revealed letter.
 func allowedGuess(g int, p *position) bool {
 	for _, t := range p.history {
-		if t.Guess == Answers[g] {
+		if t.Guess == guessWord(g) {
 			return false
 		}
 	}
-	return !p.hard || HardValid(Answers[g], p.history)
+	return !p.hard || HardValid(guessWord(g), p.history)
 }
 
 // letterFrequency is the classic hand heuristic: guess the fitting word
@@ -214,16 +268,20 @@ func planner(p *position) int {
 	}
 	// The Solver samples candidates when ranking more than sampleLimit, so
 	// a fixed seed keeps each decision the same every time.
-	s := &Solver{Max: p.max, Hard: p.hard, History: p.history, words: Answers, rng: rand.New(rand.NewPCG(1, 1))}
+	words := Answers
+	if p.all {
+		words = allGuesses()
+	}
+	s := &Solver{Max: p.max, Hard: p.hard, History: p.history, words: words, rng: rand.New(rand.NewPCG(1, 1))}
 	turnsLeft := p.max + 1 - s.Turn()
 	switch {
 	case turnsLeft <= 1:
 		return p.cands[0]
 	case turnsLeft >= 3 && len(cands) > 3:
-		return wordIndex[s.bestForThree(cands, s.rank(cands, cands))]
+		return guessIndex()[s.bestForThree(cands, s.rank(cands, cands))]
 	default:
 		g, _ := s.bestForTwo(cands, s.History)
-		return wordIndex[g]
+		return guessIndex()[g]
 	}
 }
 

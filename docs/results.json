@@ -22,7 +22,7 @@
       ],
       "failed": 0,
       "mean_guesses_when_solved": 3.495464362850972,
-      "runtime_seconds": 0.333766,
+      "runtime_seconds": 0.357442375,
       "positions_decided": 2479,
       "failed_answers": null
     },
@@ -42,7 +42,7 @@
       ],
       "failed": 0,
       "mean_guesses_when_solved": 3.5209503239740823,
-      "runtime_seconds": 0.343012041,
+      "runtime_seconds": 0.387094584,
       "positions_decided": 2494,
       "failed_answers": null
     },
@@ -62,7 +62,7 @@
       ],
       "failed": 0,
       "mean_guesses_when_solved": 3.548596112311015,
-      "runtime_seconds": 0.561683208,
+      "runtime_seconds": 0.615336959,
       "positions_decided": 2504,
       "failed_answers": null
     },
@@ -82,7 +82,7 @@
       ],
       "failed": 22,
       "mean_guesses_when_solved": 3.6498037505451375,
-      "runtime_seconds": 0.013584958,
+      "runtime_seconds": 0.015718708,
       "positions_decided": 2293,
       "failed_answers": [
         "CATCH",
@@ -125,7 +125,7 @@
       ],
       "failed": 0,
       "mean_guesses_when_solved": 3.592656587473002,
-      "runtime_seconds": 0.555652458,
+      "runtime_seconds": 0.584968166,
       "positions_decided": 2392,
       "failed_answers": null
     },
@@ -145,7 +145,7 @@
       ],
       "failed": 12,
       "mean_guesses_when_solved": 3.5822839774207553,
-      "runtime_seconds": 0.063232209,
+      "runtime_seconds": 0.06838425,
       "positions_decided": 2313,
       "failed_answers": [
         "CRAZY",
@@ -178,7 +178,7 @@
       ],
       "failed": 14,
       "mean_guesses_when_solved": 3.604954367666232,
-      "runtime_seconds": 0.06347925,
+      "runtime_seconds": 0.068452083,
       "positions_decided": 2316,
       "failed_answers": [
         "FOYER",
@@ -213,7 +213,7 @@
       ],
       "failed": 13,
       "mean_guesses_when_solved": 3.637706342311034,
-      "runtime_seconds": 0.074814083,
+      "runtime_seconds": 0.075427208,
       "positions_decided": 2322,
       "failed_answers": [
         "FOYER",
@@ -247,7 +247,7 @@
       ],
       "failed": 22,
       "mean_guesses_when_solved": 3.6498037505451375,
-      "runtime_seconds": 0.014970375,
+      "runtime_seconds": 0.016183791,
       "positions_decided": 2293,
       "failed_answers": [
         "CATCH",
@@ -290,7 +290,7 @@
       ],
       "failed": 8,
       "mean_guesses_when_solved": 3.5973125270914608,
-      "runtime_seconds": 0.237285542,
+      "runtime_seconds": 0.237795125,
       "positions_decided": 2321,
       "failed_answers": [
         "FOYER",
@@ -300,6 +300,282 @@
         "SWORE",
         "WASTE",
         "WIGHT",
+        "WOUND"
+      ]
+    }
+  ],
+  "runs_all_guesses": [
+    {
+      "strategy": "entropy",
+      "hard": false,
+      "opener": "tarse",
+      "games": 2315,
+      "wins_by_guesses": [
+        0,
+        0,
+        62,
+        1247,
+        952,
+        52,
+        2
+      ],
+      "failed": 0,
+      "mean_guesses_when_solved": 3.4319654427645787,
+      "runtime_seconds": 1.762498084,
+      "positions_decided": 2478,
+      "failed_answers": null
+    },
+    {
+      "strategy": "expected",
+      "hard": false,
+      "opener": "tiare",
+      "games": 2315,
+      "wins_by_guesses": [
+        0,
+        0,
+        66,
+        1130,
+        1068,
+        51,
+        0
+      ],
+      "failed": 0,
+      "mean_guesses_when_solved": 3.476889848812095,
+      "runtime_seconds": 1.9315520419999999,
+      "positions_decided": 2503,
+      "failed_answers": null
+    },
+    {
+      "strategy": "minimax",
+      "hard": false,
+      "opener": "olate",
+      "games": 2315,
+      "wins_by_guesses": [
+        0,
+        0,
+        56,
+        1041,
+        1165,
+        53,
+        0
+      ],
+      "failed": 0,
+      "mean_guesses_when_solved": 3.524838012958963,
+      "runtime_seconds": 2.991291584,
+      "positions_decided": 2491,
+      "failed_answers": null
+    },
+    {
+      "strategy": "freq",
+      "hard": false,
+      "opener": "alert",
+      "games": 2315,
+      "wins_by_guesses": [
+        0,
+        1,
+        130,
+        912,
+        933,
+        262,
+        55
+      ],
+      "failed": 22,
+      "mean_guesses_when_solved": 3.6498037505451375,
+      "runtime_seconds": 0.014863083,
+      "positions_decided": 2293,
+      "failed_answers": [
+        "CATCH",
+        "CRACK",
+        "DADDY",
+        "FOYER",
+        "GONER",
+        "HATCH",
+        "HOLLY",
+        "JOLLY",
+        "POUND",
+        "PRIZE",
+        "RARER",
+        "SHAVE",
+        "STASH",
+        "TASTE",
+        "TATTY",
+        "TAUNT",
+        "TIGHT",
+        "VAUNT",
+        "WILLY",
+        "WITTY",
+        "WOOLY",
+        "WOUND"
+      ]
+    },
+    {
+      "strategy": "planner",
+      "hard": false,
+      "opener": "tiare",
+      "games": 2315,
+      "wins_by_guesses": [
+        0,
+        0,
+        129,
+        958,
+        1051,
+        168,
+        9
+      ],
+      "failed": 0,
+      "mean_guesses_when_solved": 3.5550755939524836,
+      "runtime_seconds": 2.178033083,
+      "positions_decided": 2400,
+      "failed_answers": null
+    },
+    {
+      "strategy": "entropy",
+      "hard": true,
+      "opener": "tarse",
+      "games": 2315,
+      "wins_by_guesses": [
+        0,
+        0,
+        116,
+        1058,
+        964,
+        139,
+        31
+      ],
+      "failed": 7,
+      "mean_guesses_when_solved": 3.528162911611785,
+      "runtime_seconds": 0.343654084,
+      "positions_decided": 2377,
+      "failed_answers": [
+        "GONER",
+        "GROWN",
+        "POKER",
+        "POUND",
+        "WATCH",
+        "WILLY",
+        "WOUND"
+      ]
+    },
+    {
+      "strategy": "expected",
+      "hard": true,
+      "opener": "tiare",
+      "games": 2315,
+      "wins_by_guesses": [
+        0,
+        0,
+        104,
+        1004,
+        999,
+        176,
+        26
+      ],
+      "failed": 6,
+      "mean_guesses_when_solved": 3.573841489822434,
+      "runtime_seconds": 0.325297167,
+      "positions_decided": 2403,
+      "failed_answers": [
+        "GONER",
+        "JOLLY",
+        "POKER",
+        "WATCH",
+        "WINCH",
+        "WOUND"
+      ]
+    },
+    {
+      "strategy": "minimax",
+      "hard": true,
+      "opener": "olate",
+      "games": 2315,
+      "wins_by_guesses": [
+        0,
+        0,
+        82,
+        937,
+        1079,
+        186,
+        26
+      ],
+      "failed": 5,
+      "mean_guesses_when_solved": 3.6264069264069265,
+      "runtime_seconds": 0.366766583,
+      "positions_decided": 2400,
+      "failed_answers": [
+        "MOUND",
+        "POUND",
+        "SHAVE",
+        "WASTE",
+        "WATCH"
+      ]
+    },
+    {
+      "strategy": "freq",
+      "hard": true,
+      "opener": "alert",
+      "games": 2315,
+      "wins_by_guesses": [
+        0,
+        1,
+        130,
+        912,
+        933,
+        262,
+        55
+      ],
+      "failed": 22,
+      "mean_guesses_when_solved": 3.6498037505451375,
+      "runtime_seconds": 0.015242834,
+      "positions_decided": 2293,
+      "failed_answers": [
+        "CATCH",
+        "CRACK",
+        "DADDY",
+        "FOYER",
+        "GONER",
+        "HATCH",
+        "HOLLY",
+        "JOLLY",
+        "POUND",
+        "PRIZE",
+        "RARER",
+        "SHAVE",
+        "STASH",
+        "TASTE",
+        "TATTY",
+        "TAUNT",
+        "TIGHT",
+        "VAUNT",
+        "WILLY",
+        "WITTY",
+        "WOOLY",
+        "WOUND"
+      ]
+    },
+    {
+      "strategy": "planner",
+      "hard": true,
+      "opener": "tiare",
+      "games": 2315,
+      "wins_by_guesses": [
+        0,
+        0,
+        124,
+        954,
+        1044,
+        170,
+        17
+      ],
+      "failed": 6,
+      "mean_guesses_when_solved": 3.567778258986574,
+      "runtime_seconds": 0.903951625,
+      "positions_decided": 2362,
+      "failed_answers": [
+        "FOYER",
+        "GONER",
+        "JOKER",
+        "WATCH",
+        "WAVER",
         "WOUND"
       ]
     }

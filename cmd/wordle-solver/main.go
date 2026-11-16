@@ -211,8 +211,15 @@ func runBench(c *cmdCtx) error {
 		if _, ok := wordle.StrategyByName(name); !ok && name != "all" {
 			return usageError(fmt.Sprintf("unknown strategy %q; run 'wordle-solver help bench' for the list", name))
 		}
-		benchStrategies(name, opts.hard, c.bool("json"))
+		pool := c.get("guesses")
+		if pool != "answers" && pool != "all" {
+			return usageError("--guesses must be answers or all")
+		}
+		benchStrategies(name, opts.hard, pool == "all", c.bool("json"))
 		return nil
+	}
+	if err := c.unused("only a strategy (--strategy) chooses from a guess pool", "guesses"); err != nil {
+		return err
 	}
 	bench(rng, opts, c.int("n"), c.bool("json"))
 	return nil
