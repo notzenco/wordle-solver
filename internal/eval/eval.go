@@ -2,6 +2,7 @@
 package eval
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -75,7 +76,15 @@ func Parse(s string) (string, error) {
 	}
 	return s, nil
 }
+
+// Sample draws n words from a set: answers (the official list), heldout
+// (valid words never used as answers) or matched (for each answer the same
+// seed would draw, the held-out word closest to it in familiarity, so the
+// set is unfamiliar to a model without being more obscure).
 func Sample(set string, n int, seed uint64) []string {
+	if set == "matched" {
+		return matched(Sample("answers", n, seed))
+	}
 	pool := wordle.Answers
 	if set == "heldout" {
 		pool = nil
@@ -90,6 +99,42 @@ func Sample(set string, n int, seed uint64) []string {
 	out := []string{}
 	for _, i := range perm[:min(n, len(perm))] {
 		out = append(out, pool[i])
+	}
+	return out
+}
+
+func matched(answers []string) []string {
+	pool := Sample("heldout", 1<<30, 0)
+	weight := func(w string) float64 { return wordle.FrequencyWeight(w) }
+	// Sorted by familiarity, then alphabetically, so ties pick reproducibly.
+	slices.SortFunc(pool, func(a, b string) int {
+		if c := cmp.Compare(weight(a), weight(b)); c != 0 {
+			return c
+		}
+		return strings.Compare(a, b)
+	})
+	used := make([]bool, len(pool))
+	out := make([]string, 0, len(answers))
+	for _, a := range answers {
+		target := weight(a)
+		i, _ := slices.BinarySearchFunc(pool, target, func(w string, t float64) int { return cmp.Compare(weight(w), t) })
+		// Walk outwards to the nearest unused word on either side.
+		lo, hi := i-1, i
+		for lo >= 0 && used[lo] {
+			lo--
+		}
+		for hi < len(pool) && used[hi] {
+			hi++
+		}
+		best := hi
+		if hi == len(pool) || lo >= 0 && target-weight(pool[lo]) <= weight(pool[hi])-target {
+			best = lo
+		}
+		if best < 0 {
+			break
+		}
+		used[best] = true
+		out = append(out, pool[best])
 	}
 	return out
 }

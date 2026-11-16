@@ -10,7 +10,15 @@ The default `answers` set samples without replacement from answers.txt.
 These public answers may have appeared in training data. The `heldout` set
 samples frequency.txt words absent from answers.txt; these are held out from
 the solver's original answer list, not guaranteed absent from model training.
-Both sets accept every frequency word plus every original answer as guesses.
+Held-out words are also much rarer than answers (median familiarity 71
+against 620 on the solver's score), so a model doing worse on them may be
+meeting obscure words rather than unseen ones. The `matched` set separates
+the two: for each answer the same seed would draw from `answers`, it takes
+the unused held-out word closest in familiarity. Up to a few hundred games
+the medians match closely; over all 2,315 the familiar held-out words run
+short and the median falls to 394. Many familiar held-out words are plurals
+and verb forms (YEARS, TALKS), which the official answers avoid.
+All sets accept every frequency word plus every original answer as guesses.
 A fixed seed reproduces the sampled order; it does not guarantee deterministic
 model output. The answer is never sent to the model.
 
@@ -42,6 +50,7 @@ wordle-solver providers check ollama
 wordle-solver models ollama
 wordle-solver eval --model ollama/llama3.2 --games 10 --seed 42
 wordle-solver eval --model omlx/mlx-community/Llama-3.2-3B-Instruct-4bit --set heldout --seed 42
+wordle-solver eval --model omlx/mlx-community/Llama-3.2-3B-Instruct-4bit --set matched --seed 42
 wordle-solver eval --model omniroute/your-model --games 10 --out router.jsonl
 ```
 
@@ -98,6 +107,14 @@ summary. Stderr announces the run's request budget (six per game) and
 reports each game as it ends; stdout shows the summary: eligible games, wins
 and rerouting counts.
 
+`--jobs N` plays up to N games at once (the first plays alone, in case it
+reveals a decision model); the transcript keeps the sample order, so it is
+the same as a run with one job. `--resume PATH` finishes an interrupted run:
+it reads the settings from the run record, skips the games already written
+and appends the rest and the summary. Only `--base-url`, `--api-key-env`
+and `--jobs` may be given with it. A game lost to an outage is not written,
+so resuming plays it again.
+
 Game fields use the Go names shown above (`Answer`, `Solved`, `Guesses`,
 `Attempts`, …). For example, the answers a run failed:
 
@@ -125,14 +142,18 @@ have no `option_seeding` field; new runs record `per-game`.
 <!-- generated:eval-results -->
 | Model | Set | Solved | Guesses per game | Entropy strategy | Mean P(answer) | Log loss | Uniform | Frequency | Time |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Clef Flash, 4-bit | answers | 48/50 | 4.08 | 3.44 | 34.5% | 1.817 | 2.191 | 1.809 | 70 s |
-| Clef Flash, 8-bit | answers | 50/50 | 4.04 | 3.44 | 35.1% | 1.734 | 2.080 | 1.768 | 74 s |
-| Clef, 8-bit | answers | 50/50 | 4.10 | 3.44 | 36.9% | 1.781 | 2.029 | 1.647 | 248 s |
-| Clef Flash, 4-bit | held-out | 47/50 | 4.92 | 4.20 | 31.6% | 2.332 | 1.894 | 2.771 | 141 s |
-| Clef Flash, 8-bit | held-out | 44/50 | 4.98 | 4.20 | 33.7% | 2.123 | 1.729 | 2.654 | 147 s |
+| Clef Flash, 4-bit | answers | 48/50 (87–99%) | 4.08 | 3.44 | 34.5% | 1.817 | 2.191 | 1.809 | 70 s |
+| Clef Flash, 8-bit | answers | 50/50 (93–100%) | 4.04 | 3.44 | 35.1% | 1.734 | 2.080 | 1.768 | 74 s |
+| Clef, 8-bit | answers | 50/50 (93–100%) | 4.10 | 3.44 | 36.9% | 1.781 | 2.029 | 1.647 | 248 s |
+| Clef Flash, 4-bit | held-out | 47/50 (84–98%) | 4.92 | 4.20 | 31.6% | 2.332 | 1.894 | 2.771 | 141 s |
+| Clef Flash, 8-bit | held-out | 44/50 (76–94%) | 4.98 | 4.20 | 33.7% | 2.123 | 1.729 | 2.654 | 147 s |
 <!-- /generated:eval-results -->
 
-Guesses per game counts an unsolved game as 6. Mean P(answer) and the log
+The range after Solved is the 95% Wilson interval for the solve rate; with
+50 games most rows overlap, so small differences in solves are not
+evidence. Guesses per game counts an unsolved game as 6, unlike the
+benchmark's means in [analysis](analysis.md), which average solved games
+only, so the two don't compare directly. Mean P(answer) and the log
 losses cover only the turns where the answer was among the offered words;
 lower log loss is better, and the uniform and frequency columns are the
 baselines on those same turns. Time is wall-clock time for the 50 games.

@@ -114,7 +114,8 @@ ln -s "$(command -v wordle-solver)" "$(dirname "$(command -v wordle-solver)")/ws
 
 On Windows, `doskey wsolve=wordle-solver $*` adds it for the current
 console. From a checkout, use `go install ./cmd/wordle-solver`. `wordle-solver
-version` prints your version, and `wordle-solver update` replaces the binary
+version` prints your version, `wordle-solver update --check` says whether a
+newer release exists, and `wordle-solver update` replaces the binary
 with the latest release after checking it against `checksums.txt` (a build
 from a checkout needs `--force`).
 
@@ -126,6 +127,7 @@ wordle-solver play                    # play today's puzzle yourself: coloured t
 wordle-solver play --random           # practise on a random answer (offline, not saved)
 wordle-solver assist                  # type your own words; it fills in the colours and suggests the next
 wordle-solver assist --manual         # the same while playing on the website: you type the colours too
+wordle-solver next slate:bygbb        # the best next guesses for clues so far, without a game
 wordle-solver                         # solve today's puzzle by itself with the human-like player (looked up, then saved)
 wordle-solver auto --by solver        # ... with the entropy strategy
 wordle-solver auto --by model --model omlx/clef-flash-4bit   # ... with a model, through the eval harness
@@ -193,6 +195,8 @@ wordle-solver providers                                  # built-in and saved se
 wordle-solver models ollama
 wordle-solver eval --model ollama/llama3.2 --games 10 --seed 42
 wordle-solver eval --model omlx/clef-flash-4bit          # a decision model, detected automatically
+wordle-solver eval --model ollama/llama3.2 --games 200 --jobs 4   # several games at once
+wordle-solver eval --resume ~/path/to/run.jsonl          # finish an interrupted run
 ```
 
 First results, for the Clef decision model (50 games per row, seed 42; full

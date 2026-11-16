@@ -75,6 +75,12 @@ func TestProviderErrorsSayWhatWentWrong(t *testing.T) {
 	}
 }
 
+func TestEvalSetAcceptsMatched(t *testing.T) {
+	if err := validateSetting("eval.set", "matched"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGuessesNeedsAStrategy(t *testing.T) {
 	if code, _, errOut := run(t, "bench", "--guesses", "all"); code != 2 || !strings.Contains(errOut, "--strategy") {
 		t.Fatalf("code %d, %q", code, errOut)

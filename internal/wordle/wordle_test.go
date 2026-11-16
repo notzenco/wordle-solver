@@ -336,6 +336,29 @@ func TestPlayPoolComputesEachOpeningOnce(t *testing.T) {
 	}
 }
 
+func TestRankListsTheBestGuessesFirst(t *testing.T) {
+	cands, ranked := Rank(nil, false, 3)
+	if len(cands) != len(Answers) || len(ranked) != 3 || ranked[0].Word != "raise" {
+		t.Fatalf("opening: %d candidates, %+v", len(cands), ranked)
+	}
+	if ranked[0].Bits < ranked[1].Bits || ranked[1].Bits < ranked[2].Bits {
+		t.Fatalf("not sorted by information: %+v", ranked)
+	}
+	if s := OpenerStats("raise"); ranked[0].Split != s {
+		t.Fatalf("RAISE split %+v, want %+v", ranked[0].Split, s)
+	}
+	history := []Turn{{"raise", "bbbbb"}, {"could", "ybybb"}}
+	cands, ranked = Rank(history, true, 5)
+	for _, r := range ranked {
+		if !HardValid(r.Word, history) {
+			t.Fatalf("Hard Mode ranking offers %s", r.Word)
+		}
+	}
+	if len(cands) == 0 || len(Filter(cands, history)) != len(cands) {
+		t.Fatalf("candidates %v don't all fit", cands)
+	}
+}
+
 // With every valid word allowed, the scoring strategies may guess words that
 // can't be the answer, and every guess must still be legal.
 func TestBenchmarkWithAllGuesses(t *testing.T) {

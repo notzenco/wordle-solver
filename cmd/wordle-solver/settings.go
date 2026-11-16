@@ -154,7 +154,7 @@ func validateSetting(k, v string) error {
 	case "eval.api-key-env":
 		return validKeyEnv(v)
 	case "eval.set":
-		if v != "answers" && v != "heldout" {
+		if v != "answers" && v != "heldout" && v != "matched" {
 			return bad()
 		}
 	case "eval.timeout":

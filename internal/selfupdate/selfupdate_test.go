@@ -193,3 +193,17 @@ func TestReplaceExeLeavesNoFixedTempName(t *testing.T) {
 		t.Fatalf("wrote through the fixed temp name: %q", b)
 	}
 }
+
+func TestCheckReportsWithoutDownloading(t *testing.T) {
+	srv := fakeRelease(t, "v0.3.0", "linux", []byte("new binary"), false)
+	for _, c := range []struct {
+		current string
+		newer   bool
+		release bool
+	}{{"v0.2.0", true, true}, {"v0.3.0", false, true}, {"v0.4.0", false, true}, {"dev", false, false}} {
+		tag, newer, release, err := Check(context.Background(), srv.URL+"/latest", c.current)
+		if err != nil || tag != "v0.3.0" || newer != c.newer || release != c.release {
+			t.Errorf("Check(%s) = %q, newer %v, release %v, %v", c.current, tag, newer, release, err)
+		}
+	}
+}
