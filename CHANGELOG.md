@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/notzenco/wordle-solver/compare/v0.3.0...v0.4.0) (2026-11-16)
+
+
+### Features
+
+* **bench:** let strategies guess from every valid word ([#32](https://github.com/notzenco/wordle-solver/issues/32)) ([3f58318](https://github.com/notzenco/wordle-solver/commit/3f583183a7d86de56286b759ef7d5ce74bb14904))
+* **cli:** add completion scripts for bash, zsh and fish ([#28](https://github.com/notzenco/wordle-solver/issues/28)) ([dc1dd7f](https://github.com/notzenco/wordle-solver/commit/dc1dd7f250a3605d6def151e9caa5f0fe9ec9ac1))
+* **cli:** add next to rank guesses for typed clues ([#27](https://github.com/notzenco/wordle-solver/issues/27)) ([7a584ad](https://github.com/notzenco/wordle-solver/commit/7a584ad0ed06fa54f1fa1e9c43ad50a3c8f98c85))
+* **cli:** add update --check to report a newer release without installing ([#26](https://github.com/notzenco/wordle-solver/issues/26)) ([6238bc3](https://github.com/notzenco/wordle-solver/commit/6238bc3389009b7df0c7485885ddb2461471c623))
+* **eval:** add a held-out set matched to the answers' familiarity ([#30](https://github.com/notzenco/wordle-solver/issues/30)) ([bb92c82](https://github.com/notzenco/wordle-solver/commit/bb92c823430756e94afc5df5e59a12fc3b8e6433))
+* **eval:** play games in parallel with --jobs and finish runs with --resume ([#31](https://github.com/notzenco/wordle-solver/issues/31)) ([2ca6a5e](https://github.com/notzenco/wordle-solver/commit/2ca6a5ec7179bfbd5746e96ac1ac6b523ac66ecd))
+* **eval:** show 95% intervals for solve rates ([#29](https://github.com/notzenco/wordle-solver/issues/29)) ([8927a2d](https://github.com/notzenco/wordle-solver/commit/8927a2d0bf07371c4a6625bff5a9a7e808ecfd31))
+
 ## [0.3.0](https://github.com/notzenco/wordle-solver/compare/v0.2.1...v0.3.0) (2026-11-16)
 
 
