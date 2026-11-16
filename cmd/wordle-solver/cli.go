@@ -52,6 +52,7 @@ var allOptions = []option{
 	{"n", "n", "N", "0", "int", "play N random answers instead of all of them", false},
 	{"strategy", "strategy", "NAME", "", "string", "benchmark a guess strategy instead of the player model; NAME is one of the strategies below or all", true},
 
+	{"top", "top", "N", "5", "int", "how many guesses to list", false},
 	{"json", "json", "", "false", "bool", "print JSON instead of a table, for scripts", false},
 	{"y", "y", "", "false", "bool", "delete without asking", false},
 	{"force", "force", "", "false", "bool", "reinstall even when already up to date", false},
@@ -142,6 +143,14 @@ var commands = []*command{
 		examples: []string{"wordle-solver", "wordle-solver auto --by solver", "wordle-solver auto --by model --model omlx/clef-flash-4bit",
 			"wordle-solver auto --date 2026-11-12", "wordle-solver auto --from 1900 --to 1910"},
 		run: runAuto},
+	{name: "next", group: "Play", args: "[WORD:COLOURS ...]", summary: "Show the best next guesses for clues you type",
+		help: "Give each word played so far with its colours as g/y/b (or 2/1/0), such as slate:bygbb.\n" +
+			"Prints the listed answers that still fit and the guesses that split them best, by the\n" +
+			"entropy strategy's measure: bits of information, answers expected to remain, and the most\n" +
+			"that any colours could leave. A * marks a guess that could itself be the answer.",
+		options:  []string{"top", "hard", "json"},
+		examples: []string{"wordle-solver next", "wordle-solver next slate:bygbb", "wordle-solver next slate:bbybb crony:bgbbb --hard"},
+		run:      runNext},
 	{name: "sim", group: "Play", args: "WORD", summary: "Watch the solver play a known answer",
 		options:  solverOptions,
 		examples: []string{"wordle-solver sim crazy", "wordle-solver sim crazy --hard --seed 1"},
