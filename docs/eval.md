@@ -95,14 +95,23 @@ reported models, patterns, problems and error messages. Durations are nanosecond
 usage is provider-reported and zero when omitted. An interrupted file may
 lack its summary. Stdout shows eligible games, wins and rerouting counts.
 
+Game fields use the Go names shown above (`Answer`, `Solved`, `Guesses`,
+`Attempts`, …). For example, the answers a run failed:
+
+```sh
+jq -r 'select(.type == "game" and (.game.Solved | not)) | .game.Answer' run.jsonl
+```
+
 ## Results
 
 Clef, a decision model, on 2026-11-13: 50 games per row, seed 42, normal
 mode, run locally through oMLX on an Apple Silicon Mac. Each turn offered up
 to 64 words that fit the clues (candidates mode). The same seed gives every
 model the same answers, so rows within a set compare directly. Transcripts
-are in [eval-results](eval-results).
+are in [eval-results](eval-results); `go run ./tools/evalreport` rebuilds
+this table from them, and a test checks the two still match.
 
+<!-- generated:eval-results -->
 | Model | Set | Solved | Guesses per game | Entropy strategy | Mean P(answer) | Log loss | Uniform | Frequency | Time |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Clef Flash, 4-bit | answers | 48/50 | 4.08 | 3.44 | 34.5% | 1.817 | 2.191 | 1.809 | 70 s |
@@ -110,6 +119,7 @@ are in [eval-results](eval-results).
 | Clef, 8-bit | answers | 50/50 | 4.10 | 3.44 | 36.9% | 1.781 | 2.029 | 1.647 | 248 s |
 | Clef Flash, 4-bit | held-out | 47/50 | 4.92 | 4.20 | 31.6% | 2.332 | 1.894 | 2.771 | 141 s |
 | Clef Flash, 8-bit | held-out | 44/50 | 4.98 | 4.20 | 33.7% | 2.123 | 1.729 | 2.654 | 147 s |
+<!-- /generated:eval-results -->
 
 Guesses per game counts an unsolved game as 6. Mean P(answer) and the log
 losses cover only the turns where the answer was among the offered words;
