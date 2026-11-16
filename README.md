@@ -99,7 +99,7 @@ on macOS, clear the download quarantine with
 `xattr -d com.apple.quarantine wordle-solver`; on Windows, SmartScreen may
 ask you to confirm the first run.
 
-Or build from source with Go:
+Or build from source with Go 1.27 or later:
 
 ```sh
 go install github.com/notzenco/wordle-solver/cmd/wordle-solver@latest
@@ -115,7 +115,7 @@ On Windows, `doskey wsolve=wordle-solver $*` adds it for the current
 console. From a checkout, use `go install ./cmd/wordle-solver`. `wordle-solver
 version` prints your version, and `wordle-solver update` replaces the binary
 with the latest release after checking it against `checksums.txt` (a build
-from a checkout needs `-force`).
+from a checkout needs `--force`).
 
 ## Usage
 
