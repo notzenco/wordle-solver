@@ -200,17 +200,21 @@ wordle-solver eval --model ollama/llama3.2 --games 200 --jobs 4   # several game
 wordle-solver eval --resume ~/path/to/run.jsonl          # finish an interrupted run
 ```
 
-First results, for the Clef decision model (50 games per row, seed 42; full
-table and discussion in the [eval guide](docs/eval.md#results)):
+Results for the Clef decision model and a small chat model (200 games per
+row, seed 42; full table and discussion in the
+[eval guide](docs/eval.md#results)):
 
-| Model | Answers solved | Held-out solved | Guesses per game on answers (entropy: 3.44) |
-| --- | ---: | ---: | ---: |
-| Clef Flash, 4-bit | 48/50 | 47/50 | 4.08 |
-| Clef Flash, 8-bit | 50/50 | 44/50 | 4.04 |
-| Clef, 8-bit | 50/50 | not run | 4.10 |
+| Model | Answers solved | Held-out solved | Matched solved | Guesses per game on answers (entropy: 3.53) |
+| --- | ---: | ---: | ---: | ---: |
+| Clef Flash, 4-bit | 192/200 | 173/200 | 179/200 | 4.34 |
+| Clef Flash, 8-bit | 190/200 | 175/200 | 175/200 | 4.21 |
+| Clef, 8-bit | 192/200 | 177/200 | 174/200 | 4.28 |
+| Gemma 4 E2B, 4-bit (chat) | 1/200 | 0/200 | 0/200 | 5.97 |
 
-On held-out words, which were never answers, Clef does worse than a uniform
-guess among the offered words: it leans on how familiar a word is.
+Clef solves 95–96% of official answers but about 8 points fewer on words
+that were never answers, even when they are as familiar (the matched set):
+it has learnt the answer list's character, not just common words. The
+small chat model ignores the colours.
 
 Each run writes a transcript to the `evals` folder beside your saved data
 unless you pass `--out`. See [evaluating models](docs/eval.md) for configuration,

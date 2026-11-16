@@ -124,89 +124,76 @@ jq -r 'select(.type == "game" and (.game.Solved | not)) | .game.Answer' run.json
 
 ## Results
 
-Clef, a decision model, on 2026-11-13: 50 games per row, seed 42, normal
-mode, run locally through oMLX on an Apple Silicon Mac. Each turn offered up
-to 64 words that fit the clues (candidates mode). The same seed gives every
-model the same answers, so rows within a set compare directly. Transcripts
-are in [eval-results](eval-results); `go run ./tools/evalreport` rebuilds
-this table from them, and a test checks the two still match.
-
-These runs predate per-game option sampling: every game drew its options
-from the run seed and turn alone, so all 50 games in a run opened on the
-same 64 words, and the answer was among them on the first turn in none of
-them. The table still compares the models fairly with one another, since
-each saw the same options, but it says little about how Clef opens, and
-its log losses cover fewer turns than a current run would. Their run records
-have no `option_seeding` field; new runs record `per-game`.
+Run on 2026-11-16 with v0.4.0: 200 games per row, seed 42, normal mode,
+locally through oMLX on an Apple Silicon Mac. Clef, a decision model, chose
+from up to 64 offered words that fit the clues (candidates mode); Gemma 4
+E2B, a small chat model, replied with a word (free mode, temperature 0).
+The same seed gives every model the same answers, so rows within a set
+compare directly. Transcripts are in [eval-results](eval-results);
+`go run ./tools/evalreport` rebuilds this table from them, and a test checks
+the two still match.
 
 <!-- generated:eval-results -->
 | Model | Set | Solved | Guesses per game | Entropy strategy | Mean P(answer) | Log loss | Uniform | Frequency | Time |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Clef Flash, 4-bit | answers | 48/50 (87–99%) | 4.08 | 3.44 | 34.5% | 1.817 | 2.191 | 1.809 | 70 s |
-| Clef Flash, 8-bit | answers | 50/50 (93–100%) | 4.04 | 3.44 | 35.1% | 1.734 | 2.080 | 1.768 | 74 s |
-| Clef, 8-bit | answers | 50/50 (93–100%) | 4.10 | 3.44 | 36.9% | 1.781 | 2.029 | 1.647 | 248 s |
-| Clef Flash, 4-bit | held-out | 47/50 (84–98%) | 4.92 | 4.20 | 31.6% | 2.332 | 1.894 | 2.771 | 141 s |
-| Clef Flash, 8-bit | held-out | 44/50 (76–94%) | 4.98 | 4.20 | 33.7% | 2.123 | 1.729 | 2.654 | 147 s |
+| Clef Flash, 4-bit | answers | 192/200 (92–98%) | 4.34 | 3.53 | 34.1% | 1.759 | 2.070 | 1.698 | 622 s |
+| Clef Flash, 8-bit | answers | 190/200 (91–97%) | 4.21 | 3.53 | 33.7% | 1.793 | 2.080 | 1.682 | 645 s |
+| Clef, 8-bit | answers | 192/200 (92–98%) | 4.28 | 3.53 | 36.7% | 1.854 | 2.005 | 1.591 | 2383 s |
+| Gemma 4 E2B, 4-bit (chat) | answers | 1/200 (0–3%) | 5.97 | 3.53 | – | – | – | – | 306 s |
+| Clef Flash, 4-bit | held-out | 173/200 (81–91%) | 4.67 | 4.25 | 30.9% | 2.327 | 1.961 | 2.800 | 711 s |
+| Clef Flash, 8-bit | held-out | 175/200 (82–91%) | 4.69 | 4.25 | 31.8% | 2.207 | 1.906 | 2.769 | 788 s |
+| Clef, 8-bit | held-out | 177/200 (83–92%) | 4.68 | 4.25 | 29.4% | 2.455 | 2.031 | 2.964 | 2694 s |
+| Gemma 4 E2B, 4-bit (chat) | held-out | 0/200 (0–2%) | 6.00 | 4.25 | – | – | – | – | 290 s |
+| Clef Flash, 4-bit | matched | 179/200 (84–93%) | 4.61 | 4.39 | 29.7% | 2.034 | 2.117 | 1.589 | 719 s |
+| Clef Flash, 8-bit | matched | 175/200 (82–91%) | 4.67 | 4.39 | 29.1% | 2.037 | 2.072 | 1.561 | 792 s |
+| Clef, 8-bit | matched | 174/200 (82–91%) | 4.67 | 4.39 | 28.6% | 2.162 | 2.175 | 1.641 | 2727 s |
+| Gemma 4 E2B, 4-bit (chat) | matched | 0/200 (0–2%) | 6.00 | 4.39 | – | – | – | – | 285 s |
 <!-- /generated:eval-results -->
 
-The range after Solved is the 95% Wilson interval for the solve rate; with
-50 games most rows overlap, so small differences in solves are not
-evidence. Guesses per game counts an unsolved game as 6, unlike the
-benchmark's means in [analysis](analysis.md), which average solved games
-only, so the two don't compare directly. Mean P(answer) and the log
-losses cover only the turns where the answer was among the offered words;
+The range after Solved is the 95% Wilson interval for the solve rate.
+Guesses per game counts an unsolved game as 6, unlike the benchmark's means
+in [analysis](analysis.md), which average solved games only, so the two
+don't compare directly. Mean P(answer) and the log losses cover only the
+turns where the answer was among the offered words (460–568 per Clef row);
 lower log loss is better, and the uniform and frequency columns are the
-baselines on those same turns. Time is wall-clock time for the 50 games.
+baselines on those same turns. Chat models give no probabilities, so their
+rows have none. Time is wall-clock time for the 200 games.
 
 What the runs show:
 
-- **Clef plays well on real answers but leans on familiarity.** On the
-  official answers it solves 96–100% of games, about 0.6 guesses behind the
-  entropy strategy. Its answer probabilities beat a uniform guess, but not
-  clearly a plain frequency prior: only Flash 8-bit edges past it, and the
-  larger Clef model is further behind it.
-- **Held-out words expose that.** On valid words that were never answers,
-  which are mostly unfamiliar, Clef's log loss is worse than a uniform guess
-  and it fails 3–6 games in 50 (JOURS, BEAUS and VANGS beat both Flash
-  variants). Every offered word fits the clues, so this is about choosing
-  among them: Clef favours familiar words, which suits the official answers
-  and hurts on obscure ones.
-- **Size and precision matter little here.** The 8-bit Flash model is
-  slightly better than the 4-bit one on answers; on held-out words it has
-  the lower log loss but solves fewer games. The full Clef model is not better than Flash while
-  taking over three times as long. With 50 games per row, differences of a
-  game or two are within noise.
+- **On the official answers Clef is strong but not clever.** All three
+  models solve 95–96% of games, 0.7–0.8 guesses per game behind the entropy
+  strategy. Their answer probabilities beat a uniform guess but not a plain
+  frequency prior: among the words that fit, picking the most familiar
+  would have been better calibrated than Clef.
+- **Words that were never answers cost about 8 points of solve rate.** On
+  held-out words Clef solves 87–89%, and its log loss is worse than a
+  uniform guess (the frequency prior is worse still, because these words
+  are rare).
+- **Familiarity doesn't explain the drop.** The matched set holds held-out
+  words as familiar as the answers, and Clef does no better on it (87–90%)
+  than on the plain held-out set; there the frequency prior beats Clef
+  clearly. Clef seems to have learnt the character of the answer list, not
+  just which words are common. One visible difference: 47% of matched words
+  end in S, against 2.5% of sampled answers. Plurals are over-represented
+  among the full Clef model's misses there (17 of 26) but not among Clef
+  Flash's (8 of 21 and 8 of 25), so they explain only part of it.
+- **Size and precision change nothing measurable.** The three Clef models'
+  intervals overlap in every set, and the full model takes 3.4–3.8 times
+  as long as Flash.
+- **A small chat model can't play.** Gemma 4 E2B solved 1 game in 600. It
+  mostly repeats AUDIO, TIGER or RIVER regardless of the colours, and
+  68–73% of its guesses contradict clues it has already been given. Larger
+  chat models that reason before answering need a much higher
+  `--max-tokens` than the default 64 and were not run.
 
-The full Clef model was not run on the held-out set. Chat models have not
-been run yet.
+As expected with 64 of about 11,000 words offered, the answer was among the
+first turn's options in 1 game per run.
 
 To reproduce a row (oMLX serving the model locally):
 
 ```sh
-wordle-solver eval --model omlx/clef-flash-4bit --set answers --games 50 --seed 42
-```
-
-## Decision models and candidate options
-
-Chat models generate a word; SystemOne decision models (Clef, Jev and Nimble)
-choose from supplied options. Compare these kinds only with both using
-`--options candidates`. Free-generation scores measure a different task:
-filtering provides information and capping can omit the answer.
-
-Built-in providers, and providers saved without `--kind`, detect the kind
-per model. Requests start with the chat adapter. If the first chat request
-of a run gets an HTTP 400 identifying a decision model, nothing has been
-scored yet: the partial transcript is deleted, a notice goes to stderr, the
-run restarts with `--kind systemone` and candidate options, and the run
-record sets `kind_detected`. This happens at most once per run and never
-after a game has been scored. An explicit kind, from `--kind`, the
-`eval.kind` setting or a provider saved with `--kind`, is never changed: a
-chat run against a decision model stops with a suggestion instead.
-`--kind systemone` alone implies `--options candidates`.
-
-```sh
-wordle-solver eval --model omlx/clef-flash-4bit --games 3 --seed 42
-wordle-solver eval --model omlx/clef-flash-4bit --max-options 64 --distractors 4 --games 3 --seed 42
+wordle-solver eval --model omlx/clef-flash-4bit --set matched --games 200 --seed 42 --jobs 2
 ```
 
 SystemOne requires candidates mode. Each turn filters the full valid vocabulary
