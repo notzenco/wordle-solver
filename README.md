@@ -125,7 +125,7 @@ wordle-solver play                    # play today's puzzle yourself: coloured t
 wordle-solver play --random           # practise on a random answer (offline, not saved)
 wordle-solver assist                  # type your own words; it fills in the colours and suggests the next
 wordle-solver assist --manual         # the same while playing on the website: you type the colours too
-wordle-solver                         # solve today's puzzle by itself with the human-like player
+wordle-solver                         # solve today's puzzle by itself with the human-like player (looked up, then saved)
 wordle-solver auto --by solver        # ... with the entropy strategy
 wordle-solver auto --by model --model omlx/clef-flash-4bit   # ... with a model, through the eval harness
 wordle-solver auto --date 2026-11-12  # another day's puzzle (or --id N, or --from N --to M)
@@ -133,7 +133,8 @@ wordle-solver sim crazy               # watch the human-like player solve a give
 wordle-solver bench --strategy all    # compare the five strategies
 wordle-solver stats                   # the human-like player's record; --mine for your own games
 wordle-solver sync                    # cache every past answer (a few minutes)
-wordle-solver clean                   # delete the saved profile, games and answers
+wordle-solver auto --offline --id 1500 # use only cached answers; nothing is looked up
+wordle-solver clean                   # delete the saved profile, games, answers, settings and providers
 wordle-solver settings                # saved defaults and where each value comes from
 ```
 
@@ -167,6 +168,10 @@ share these:
 | `--sloppy P` | chance of a human slip per guess with guesses to spare (default 0.2, 0 = never) |
 | `--seed N` | make random choices reproducible |
 | `--copy` | copy the share grid to the clipboard |
+
+`play`, `assist` and `auto` look up the day's answer online unless given
+`--random` or `--offline`; `--offline` uses only answers already saved, by
+earlier games or `sync`, and says so when one is missing.
 
 Save a default with `wordle-solver settings set max 5`; `wordle-solver help
 settings` lists every key.

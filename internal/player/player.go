@@ -62,6 +62,21 @@ func Dir() (string, error) {
 	return filepath.Join(base, "wordle-solver"), nil
 }
 
+// CachedAnswers reads the NYT answers saved in dir without loading, or
+// creating, a profile.
+func CachedAnswers(dir string) (map[int]string, error) {
+	answers := map[int]string{}
+	if err := readJSON(filepath.Join(dir, answersFile), &answers); err != nil {
+		return nil, err
+	}
+	for n, a := range answers {
+		if !wordle.IsWord(a) {
+			return nil, fmt.Errorf("%s: answer %q for puzzle %d is not five letters a-z", filepath.Join(dir, answersFile), a, n)
+		}
+	}
+	return answers, nil
+}
+
 // Load reads the store in dir, creating a new profile with rng on first use.
 func Load(dir string, rng *rand.Rand) (*Store, error) {
 	s := &Store{History: map[int]Game{}, Answers: map[int]string{}, dir: dir}

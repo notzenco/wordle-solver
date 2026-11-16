@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"math/rand/v2"
@@ -222,9 +221,7 @@ func (c *cmdCtx) puzzle(rng *rand.Rand) (puzzle, error) {
 		}
 		day = d
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	p, err := wordle.FetchPuzzle(ctx, wordle.NYTBaseURL, day)
+	p, err := lookupPuzzle(day, c.bool("offline"))
 	if err != nil {
 		return puzzle{}, err
 	}
