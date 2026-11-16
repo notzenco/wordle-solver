@@ -28,6 +28,17 @@ var labels = []struct{ id, label string }{
 	{"clef-flash-4bit", "Clef Flash, 4-bit"},
 	{"clef-flash-8bit", "Clef Flash, 8-bit"},
 	{"clef-8bit", "Clef, 8-bit"},
+	{"Gemma 4 E2B · Heretic · 4-bit", "Gemma 4 E2B, 4-bit (chat)"},
+}
+
+// setOrder puts the official answers first, then the held-out sets.
+var setOrder = map[string]int{"answers": 0, "heldout": 1, "matched": 2}
+
+func setRank(set string) int {
+	if r, ok := setOrder[set]; ok {
+		return r
+	}
+	return len(setOrder)
 }
 
 type row struct {
@@ -36,6 +47,7 @@ type row struct {
 	Guesses, Baseline                int
 	Duration                         time.Duration
 	Probability, Loss, Uniform, Freq float64
+	Scored                           int // turns whose decision scores exist
 }
 
 func readRun(path string) (row, error) {
@@ -80,6 +92,7 @@ func readRun(path string) (row, error) {
 			r.Eligible, r.Solved = line.Eligible, line.Solved
 			r.Probability, r.Loss = line.Metrics["true_probability"], line.Metrics["model_log_loss"]
 			r.Uniform, r.Freq = line.Metrics["uniform_log_loss"], line.Metrics["frequency_log_loss"]
+			r.Scored = int(line.Metrics["offered_answer_turns"])
 		}
 	}
 	if err := sc.Err(); err != nil {
@@ -109,8 +122,11 @@ func label(model string) string {
 
 func table(rows []row) string {
 	slices.SortStableFunc(rows, func(a, b row) int {
+		if d := setRank(a.Set) - setRank(b.Set); d != 0 {
+			return d
+		}
 		if a.Set != b.Set {
-			return map[bool]int{true: -1, false: 1}[a.Set == "answers"]
+			return strings.Compare(a.Set, b.Set)
 		}
 		if d := order(a.Model) - order(b.Model); d != 0 {
 			return d
@@ -127,9 +143,14 @@ func table(rows []row) string {
 		}
 		n := float64(r.Eligible)
 		lo, hi := modeleval.Wilson(r.Solved, r.Eligible)
-		fmt.Fprintf(&b, "| %s | %s | %d/%d (%.0f–%.0f%%) | %.2f | %.2f | %.1f%% | %.3f | %.3f | %.3f | %.0f s |\n",
+		// Chat models give no probabilities, so they have no decision scores.
+		scores := "– | – | – | –"
+		if r.Scored > 0 {
+			scores = fmt.Sprintf("%.1f%% | %.3f | %.3f | %.3f", 100*r.Probability, r.Loss, r.Uniform, r.Freq)
+		}
+		fmt.Fprintf(&b, "| %s | %s | %d/%d (%.0f–%.0f%%) | %.2f | %.2f | %s | %.0f s |\n",
 			label(r.Model), set, r.Solved, r.Eligible, 100*lo, 100*hi, float64(r.Guesses)/n, float64(r.Baseline)/n,
-			100*r.Probability, r.Loss, r.Uniform, r.Freq, r.Duration.Seconds())
+			scores, r.Duration.Seconds())
 	}
 	return b.String()
 }
