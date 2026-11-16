@@ -192,6 +192,8 @@ wordle-solver providers                                  # built-in and saved se
 wordle-solver models ollama
 wordle-solver eval --model ollama/llama3.2 --games 10 --seed 42
 wordle-solver eval --model omlx/clef-flash-4bit          # a decision model, detected automatically
+wordle-solver eval --model ollama/llama3.2 --games 200 --jobs 4   # several games at once
+wordle-solver eval --resume ~/path/to/run.jsonl          # finish an interrupted run
 ```
 
 First results, for the Clef decision model (50 games per row, seed 42; full
