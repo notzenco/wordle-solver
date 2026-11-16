@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.0](https://github.com/notzenco/wordle-solver/compare/v0.2.1...v0.3.0) (2026-11-16)
+
+
+### Features
+
+* **cli:** add --json output to bench, stats, providers and settings ([#25](https://github.com/notzenco/wordle-solver/issues/25)) ([e57a8bd](https://github.com/notzenco/wordle-solver/commit/e57a8bda77f588bd3f13e8808a46877c11ad0367))
+* **cli:** add --offline to play from cached answers only ([#23](https://github.com/notzenco/wordle-solver/issues/23)) ([cde559b](https://github.com/notzenco/wordle-solver/commit/cde559bb6665e275eee5412d1ea98b37de13ae5c))
+* **eval:** report progress while a run plays ([#24](https://github.com/notzenco/wordle-solver/issues/24)) ([2acc84b](https://github.com/notzenco/wordle-solver/commit/2acc84b88136e14cbe7194ea5b8881abb3d410b4))
+
+
+### Bug Fixes
+
+* **cli:** reject ignored flags and explain assist and provider errors ([#19](https://github.com/notzenco/wordle-solver/issues/19)) ([d6966f8](https://github.com/notzenco/wordle-solver/commit/d6966f89010744a6efd739a773488f7f45bfd872))
+* **eval:** count request failures and keep reply metadata ([#17](https://github.com/notzenco/wordle-solver/issues/17)) ([d2d7c8a](https://github.com/notzenco/wordle-solver/commit/d2d7c8a5dfd82fcc190dafd7bcf10ffbf16dbf7f))
+* **eval:** draw candidate options per game, not per run ([#22](https://github.com/notzenco/wordle-solver/issues/22)) ([d5783a4](https://github.com/notzenco/wordle-solver/commit/d5783a49e8abc99f4b9bbe673068d1f207f99b55))
+* **solver:** keep hard mode look-ahead legal and cache pool openings ([#18](https://github.com/notzenco/wordle-solver/issues/18)) ([b325bff](https://github.com/notzenco/wordle-solver/commit/b325bffc65f76d92e30ef6256e6287da5f6e17e7))
+
 ## [0.2.1](https://github.com/notzenco/wordle-solver/compare/v0.2.0...v0.2.1) (2026-11-13)
 
 
