@@ -244,7 +244,16 @@ func settingsCommand(c *cmdCtx) error {
 		}
 		return ""
 	}
+	if c.bool("json") && sub != "list" {
+		return usageError("--json only applies to 'settings list'")
+	}
 	switch {
+	case sub == "list" && len(args) == 0 && c.bool("json"):
+		out := []map[string]string{}
+		for _, o := range opts {
+			out = append(out, map[string]string{"key": o.id, "value": value(o.id), "source": src[o.id]})
+		}
+		return writeJSONOut(out)
 	case sub == "list" && len(args) == 0:
 		tw := tabwriter.NewWriter(stdout, 0, 0, 3, ' ', 0)
 		fmt.Fprintln(tw, "KEY\tVALUE\tSOURCE")

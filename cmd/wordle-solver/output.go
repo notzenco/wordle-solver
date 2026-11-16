@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -27,6 +28,22 @@ func score(turns []wordle.Turn) string {
 		return fmt.Sprintf("%d/6", len(turns))
 	}
 	return "X/6"
+}
+
+// writeJSONOut prints v as indented JSON on stdout.
+func writeJSONOut(v any) error {
+	enc := json.NewEncoder(stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(v)
+}
+
+func statsJSON(st player.Stats) map[string]any {
+	guesses := map[string]int{}
+	for turn := 1; turn <= 6; turn++ {
+		guesses[fmt.Sprint(turn)] = st.Guesses[turn]
+	}
+	return map[string]any{"played": st.Played, "won": st.Won, "current_streak": st.CurrentStreak,
+		"max_streak": st.MaxStreak, "wins_by_guesses": guesses}
 }
 
 func printStats(st player.Stats) {

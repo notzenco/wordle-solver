@@ -210,10 +210,10 @@ func runBench(c *cmdCtx) error {
 		if _, ok := wordle.StrategyByName(name); !ok && name != "all" {
 			return usageError(fmt.Sprintf("unknown strategy %q; run 'wordle-solver help bench' for the list", name))
 		}
-		benchStrategies(name, opts.hard)
+		benchStrategies(name, opts.hard, c.bool("json"))
 		return nil
 	}
-	bench(rng, opts, c.int("n"))
+	bench(rng, opts, c.int("n"), c.bool("json"))
 	return nil
 }
 
@@ -229,12 +229,19 @@ func runStats(c *cmdCtx) error {
 		}
 		fmt.Fprintln(stdout, "Your own games ('wordle-solver play'):")
 		fmt.Fprintln(stdout)
+		if c.bool("json") {
+			return writeJSONOut(statsJSON(player.StatsFor(games, today)))
+		}
 		printStats(player.StatsFor(games, today))
 		return nil
 	}
+	st := loadStore(rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))).Stats(today)
+	if c.bool("json") {
+		return writeJSONOut(statsJSON(st))
+	}
 	fmt.Fprintln(stdout, "The human-like player's games ('wordle-solver auto'); --mine shows yours:")
 	fmt.Fprintln(stdout)
-	printStats(loadStore(rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))).Stats(today))
+	printStats(st)
 	return nil
 }
 

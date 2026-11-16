@@ -135,6 +135,7 @@ wordle-solver stats                   # the human-like player's record; --mine f
 wordle-solver sync                    # cache every past answer (a few minutes)
 wordle-solver clean                   # delete the saved profile, games and answers
 wordle-solver settings                # saved defaults and where each value comes from
+wordle-solver bench --strategy all --json   # JSON for scripts; also stats, providers and settings
 ```
 
 ### Approaches
