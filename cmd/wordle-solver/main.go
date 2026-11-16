@@ -200,6 +200,10 @@ func runBench(c *cmdCtx) error {
 		return err
 	}
 	if name := c.get("strategy"); name != "" {
+		if err := c.unused("a strategy plays every answer, the same way each time, and only --hard changes it",
+			"n", "seed", "max", "target", "sloppy"); err != nil {
+			return err
+		}
 		if _, ok := wordle.StrategyByName(name); !ok && name != "all" {
 			return usageError(fmt.Sprintf("unknown strategy %q; run 'wordle-solver help bench' for the list", name))
 		}

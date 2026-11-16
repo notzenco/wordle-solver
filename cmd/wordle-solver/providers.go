@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 
 	"fmt"
 	modeleval "github.com/notzenco/wordle-solver/internal/eval"
@@ -206,7 +207,13 @@ func apiRequest(client *http.Client, p provider, path string, body io.Reader) ([
 	safe.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	resp, e := safe.Do(req)
 	if e != nil {
-		return nil, fmt.Errorf("API request failed")
+		// url.Error repeats the full URL; the inner error names the cause
+		// (refused, timeout, DNS) without it.
+		var ue *url.Error
+		if errors.As(e, &ue) {
+			e = ue.Err
+		}
+		return nil, fmt.Errorf("API request to %s failed: %s", req.URL.Host, redact(p, e.Error()))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == 400 && path == "/chat/completions" {
@@ -216,7 +223,21 @@ func apiRequest(client *http.Client, p provider, path string, body io.Reader) ([
 		}
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("API returned HTTP %d", resp.StatusCode)
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
+		if len(b) == 4<<10 {
+			// The limit may cut an echoed key, which redact would then miss.
+			b = b[:len(b)-512]
+		}
+		msg := fmt.Sprintf("API returned HTTP %d", resp.StatusCode)
+		// Providers explain auth and quota problems in the body; some echo
+		// the key, so it is redacted and shortened to one line.
+		if detail := strings.Join(strings.Fields(redact(p, string(b))), " "); detail != "" {
+			if len(detail) > 200 {
+				detail = detail[:197] + "..."
+			}
+			msg += ": " + detail
+		}
+		return nil, errors.New(msg)
 	}
 	b, e := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if e != nil {

@@ -171,9 +171,11 @@ share these:
 Save a default with `wordle-solver settings set max 5`; `wordle-solver help
 settings` lists every key.
 
-In `assist`, press Enter on an empty line to play the suggestion. With
-`--manual`, enter the colours the website showed as `g`/`y`/`b` (or
-`2`/`1`/`0`), for example `bygbb`.
+In `assist`, press Enter on an empty line to play the suggestion, or type
+`back` to undo the last word. With `--manual`, enter the colours the
+website showed as `g`/`y`/`b` (or `2`/`1`/`0`), for example `bygbb`;
+colours that no word could produce with the earlier ones are refused so
+you can retype them.
 
 ## Evaluating models
 
@@ -215,7 +217,7 @@ solver still plays from the colours alone, and the output says so.
 Fetched answers are cached. Answers added after the original list, such as
 MOXIE, join the solver's word list, so they are ordinary candidates. Each
 game and the player profile are saved, and rerunning a day shows the saved
-game (`-fresh` replays it, `-dry` saves nothing). `stats` summarises the
+game (`--fresh` replays it, `--dry` saves nothing). `stats` summarises the
 saved games exactly as they were played. The data lives in `wordle-solver`
 in your user config folder (`~/Library/Application Support` on macOS,
 `~/.config` on Linux, `%AppData%` on Windows); set `WORDLE_SOLVER_HOME` or
@@ -232,7 +234,7 @@ a finishing turn drawn from rough human weights. The
 [human model](docs/human-model.md) states every assumption and compares the
 model with 2022 results people reported: it averages about 4.3 guesses
 against their 4.1, and its results are more tightly bunched. Under
-`-max` below 6 or `-hard` it drops the slips and pacing and plays carefully.
+`--max` below 6 or `--hard` it drops the slips and pacing and plays carefully.
 
 Over every answer, with `wordle-solver bench [option] --seed N` for seeds
 1, 2 and 3 (ranges across the three seeds):
@@ -240,9 +242,9 @@ Over every answer, with `wordle-solver bench [option] --seed N` for seeds
 | Option | Mean guesses when solved | Over the limit or lost |
 | --- | ---: | --- |
 | none | 4.29–4.32 | none |
-| `-max 5` | 3.91–3.94 | none |
-| `-max 4` | 3.70 | 51–63 games (2.2–2.7%) take 5 or 6 guesses; none lost |
-| `-hard` | 3.81–3.88 | 6–8 games lost (0.3%) |
+| `--max 5` | 3.91–3.94 | none |
+| `--max 4` | 3.70 | 51–63 games (2.2–2.7%) take 5 or 6 guesses; none lost |
+| `--hard` | 3.81–3.88 | 6–8 games lost (0.3%) |
 
 ## Development
 
