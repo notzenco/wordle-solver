@@ -67,24 +67,31 @@ attempts are marked `Free` in the result.
 Replies accept a single five-letter word (optionally quoted) or a JSON
 object with a guess field, optionally inside one Markdown code fence. Ambiguous prose is malformed. Malformed replies,
 unknown words and Hard Mode violations waste a turn without adding feedback.
-Request failures also waste a turn and are recorded; a recognised chat/decision
-model mismatch stops the run instead. Hard Mode retains greens
+Request failures also waste a turn; each attempt records the error, and the
+summary counts them separately from malformed replies. A game in which every
+request failed stops the run with a non-zero exit, so an outage is never
+scored as model play. A recognised chat/decision model mismatch also stops the
+run. Hard Mode retains greens
 and revealed letter counts, using the engine's HardValid rule.
 
-Every response's reported model is retained. Any nonempty model differing
-from the requested model marks the entire game as rerouted and excludes it
-from eligible and solved totals, even if the provider uses an alias. Missing
-model fields cannot establish whether routing occurred.
+Every response's reported model is retained, including on malformed replies.
+Any nonempty model differing from the requested model marks the entire game as
+rerouted and excludes it from eligible and solved totals. Only two spellings
+count as the same model: Ollama's default tag (`llama3.2:latest` for
+`llama3.2`) and a dated snapshot suffix (`gpt-4o-2024-08-06` or
+`name-20250101`); any other alias counts as rerouting. Missing model fields
+cannot establish whether routing occurred.
 
 Without `--out`, each run writes a new file named after the provider, model
 and start time in the `evals` folder beside the saved player data. The
 output path is created exclusively so existing runs are preserved.
 JSON lines begin with a `run` record (provider, credential-free base URL,
-model, effective settings, seed, UTC date and tool version), followed by
-`game` records and a final `summary` with the rerouted count. Each game has
+model, effective settings, the fixed prompt text, seed, UTC date and tool
+version), followed by `game` records and a final `summary` with the rerouted
+and request-failure counts. Each game has
 the answer, success, attempts used, baseline count and success, difference,
 error counts, token total, duration and individual attempts with raw replies,
-reported models, patterns and problems. Durations are nanoseconds. Token
+reported models, patterns, problems and error messages. Durations are nanoseconds. Token
 usage is provider-reported and zero when omitted. An interrupted file may
 lack its summary. Stdout shows eligible games, wins and rerouting counts.
 

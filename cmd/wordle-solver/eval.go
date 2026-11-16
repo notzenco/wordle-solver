@@ -16,6 +16,8 @@ import (
 	"github.com/notzenco/wordle-solver/internal/player"
 )
 
+const chatInstructions = "Return only a JSON object with one key, guess, containing your next word. Do not explain."
+
 type chatPlayer struct {
 	provider    provider
 	model       string
@@ -25,7 +27,7 @@ type chatPlayer struct {
 }
 
 func (p *chatPlayer) Guess(o modeleval.Observation) (modeleval.Reply, error) {
-	prompt := gameState(o) + "Return only a JSON object with one key, guess, containing your next word. Do not explain."
+	prompt := gameState(o) + chatInstructions
 	if o.Options != nil {
 		prompt += " Choose only from: " + strings.Join(o.Options, ", ")
 	}
@@ -157,7 +159,13 @@ func runEval(r evalRun) error {
 	settings := map[string]any{"eval.set": r.set, "eval.games": r.games, "eval.seed": r.seed, "hard": r.hard, "eval.kind": r.kind,
 		"eval.options": r.mode, "eval.max-options": r.maxOptions, "eval.distractors": r.distractors,
 		"eval.temperature": r.temperature, "eval.max-tokens": r.maxTokens, "eval.timeout": r.timeout.String()}
-	meta := map[string]any{"type": "run", "model": r.model, "provider": r.name, "base_url": r.provider.BaseURL, "settings": settings,
+	// The prompt is recorded so a later wording change can't silently make
+	// runs incomparable.
+	prompt := map[string]string{"state": gameState(modeleval.Observation{Hard: r.hard}), "instructions": chatInstructions}
+	if r.kind == "systemone" {
+		prompt["instructions"] = systemoneInstructions
+	}
+	meta := map[string]any{"type": "run", "prompt": prompt, "model": r.model, "provider": r.name, "base_url": r.provider.BaseURL, "settings": settings,
 		"kind_detected": r.detected, "seed": r.seed, "date": time.Now().UTC().Format(time.RFC3339), "version": versionString()}
 	if err = enc.Encode(meta); err != nil {
 		return err
@@ -183,6 +191,7 @@ func runEval(r evalRun) error {
 		for i := range g.Attempts {
 			g.Attempts[i].Reply.Text = redact(r.provider, g.Attempts[i].Reply.Text)
 			g.Attempts[i].Reply.Model = redact(r.provider, g.Attempts[i].Reply.Model)
+			g.Attempts[i].Error = redact(r.provider, g.Attempts[i].Error)
 		}
 		if err = enc.Encode(map[string]any{"type": "game", "game": g}); err != nil {
 			return err
@@ -190,8 +199,16 @@ func runEval(r evalRun) error {
 		if g.Error != "" {
 			return fmt.Errorf("%s (transcript so far: %s)", g.Error, r.out)
 		}
+		s.RequestFailures += g.RequestFailures
+		if g.RequestFailures == g.Guesses {
+			// A whole game of failed requests is an outage, not a model result.
+			s.Games = i + 1
+			writeEvalSummary(stdout, s)
+			return fmt.Errorf("every request in game %d failed (%s); stopped so the outage is not scored as model play (transcript so far: %s)",
+				i+1, redact(r.provider, g.Attempts[len(g.Attempts)-1].Error), r.out)
+		}
 	}
-	if err = enc.Encode(map[string]any{"type": "summary", "metrics": s.metrics(), "games": s.Games, "eligible": s.Eligible, "solved": s.Solved, "rerouted": s.Rerouted}); err != nil {
+	if err = enc.Encode(map[string]any{"type": "summary", "metrics": s.metrics(), "games": s.Games, "eligible": s.Eligible, "solved": s.Solved, "rerouted": s.Rerouted, "request_failures": s.RequestFailures}); err != nil {
 		return err
 	}
 	writeEvalSummary(stdout, s)
