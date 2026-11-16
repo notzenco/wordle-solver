@@ -37,9 +37,7 @@ func auto(rng *rand.Rand, opts options, store *player.Store, day time.Time, fres
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	p, err := wordle.FetchPuzzle(ctx, wordle.NYTBaseURL, day)
+	p, err := lookupPuzzle(day, opts.offline)
 	if err != nil {
 		fail(err.Error())
 	}
@@ -57,6 +55,30 @@ func auto(rng *rand.Rand, opts options, store *player.Store, day time.Time, fres
 		}
 	}
 	return true
+}
+
+// lookupPuzzle gets day's puzzle from NYT, or offline from the answers
+// saved by earlier games and 'sync'.
+func lookupPuzzle(day time.Time, offline bool) (wordle.Puzzle, error) {
+	if !offline {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		return wordle.FetchPuzzle(ctx, wordle.NYTBaseURL, day)
+	}
+	n := wordle.NumberForDate(day)
+	dir, err := player.Dir()
+	if err != nil {
+		return wordle.Puzzle{}, err
+	}
+	answers, err := player.CachedAnswers(dir)
+	if err != nil {
+		return wordle.Puzzle{}, err
+	}
+	a, ok := answers[n]
+	if !ok {
+		return wordle.Puzzle{}, fmt.Errorf("puzzle #%s isn't cached, and --offline looks nothing up; run 'wordle-solver sync' while online to save every past answer", thousands(n))
+	}
+	return wordle.Puzzle{Number: n, Solution: a, Date: wordle.DateForNumber(n).Format(time.DateOnly)}, nil
 }
 
 // autoHeader introduces a game against a fetched answer and says how that
@@ -90,9 +112,7 @@ func autoRange(rng *rand.Rand, opts options, store *player.Store, numbers []int,
 			fmt.Fprintf(stdout, "%s  (already played)\n", summary(n, g.Turns))
 			continue
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		p, err := wordle.FetchPuzzle(ctx, wordle.NYTBaseURL, wordle.DateForNumber(n))
-		cancel()
+		p, err := lookupPuzzle(wordle.DateForNumber(n), opts.offline)
 		if err != nil {
 			fail(err.Error())
 		}
@@ -103,7 +123,9 @@ func autoRange(rng *rand.Rand, opts options, store *player.Store, numbers []int,
 			fail(fmt.Sprintf("saving game: %v", err))
 		}
 		fmt.Fprintln(stdout, summary(n, turns))
-		time.Sleep(200 * time.Millisecond) // go easy on NYT's server
+		if !opts.offline {
+			time.Sleep(200 * time.Millisecond) // go easy on NYT's server
+		}
 	}
 	fmt.Fprintln(stdout)
 	printStats(store.Stats(wordle.NumberForDate(time.Now())))

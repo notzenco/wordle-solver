@@ -30,5 +30,8 @@ for target in $targets; do
   fi
   rm -rf "$stage"
 done
-(cd dist && sha256sum -- *.tar.gz *.zip > checksums.txt)
+# macOS ships shasum but not sha256sum; both write the same format.
+sha256=(sha256sum --)
+command -v sha256sum >/dev/null || sha256=(shasum -a 256 --)
+(cd dist && "${sha256[@]}" *.tar.gz *.zip > checksums.txt)
 ls -l dist
