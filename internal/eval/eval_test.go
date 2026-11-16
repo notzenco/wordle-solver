@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/notzenco/wordle-solver/internal/wordle"
+	"math"
+	"slices"
 	"testing"
 )
 
@@ -123,5 +125,35 @@ func TestSameModelAllowsTagAndSnapshotAliases(t *testing.T) {
 		if got := SameModel(c.requested, c.reported); got != c.same {
 			t.Errorf("SameModel(%q, %q) = %v", c.requested, c.reported, got)
 		}
+	}
+}
+
+// The matched set pairs each sampled answer with a held-out word about as
+// familiar, so it tests unfamiliarity to the model, not obscurity.
+func TestMatchedSetIsHeldOutButAsFamiliar(t *testing.T) {
+	answers := Sample("answers", 200, 42)
+	matched := Sample("matched", 200, 42)
+	heldout := Sample("heldout", 200, 42)
+	seen := map[string]bool{}
+	for _, w := range matched {
+		if wordle.InAnswers(w) || seen[w] {
+			t.Fatalf("%s is an answer or repeated", w)
+		}
+		seen[w] = true
+	}
+	median := func(ws []string) float64 {
+		f := make([]float64, len(ws))
+		for i, w := range ws {
+			f[i] = wordle.FrequencyWeight(w)
+		}
+		slices.Sort(f)
+		return f[len(f)/2]
+	}
+	a, m, h := median(answers), median(matched), median(heldout)
+	if math.Abs(m-a) > math.Abs(h-a)/4 {
+		t.Fatalf("median familiarity: answers %.0f, matched %.0f, held-out %.0f", a, m, h)
+	}
+	if again := Sample("matched", 200, 42); !slices.Equal(again, matched) {
+		t.Fatal("matched sample is not reproducible")
 	}
 }

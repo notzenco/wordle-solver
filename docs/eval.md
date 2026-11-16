@@ -10,7 +10,15 @@ The default `answers` set samples without replacement from answers.txt.
 These public answers may have appeared in training data. The `heldout` set
 samples frequency.txt words absent from answers.txt; these are held out from
 the solver's original answer list, not guaranteed absent from model training.
-Both sets accept every frequency word plus every original answer as guesses.
+Held-out words are also much rarer than answers (median familiarity 71
+against 620 on the solver's score), so a model doing worse on them may be
+meeting obscure words rather than unseen ones. The `matched` set separates
+the two: for each answer the same seed would draw from `answers`, it takes
+the unused held-out word closest in familiarity. Up to a few hundred games
+the medians match closely; over all 2,315 the familiar held-out words run
+short and the median falls to 394. Many familiar held-out words are plurals
+and verb forms (YEARS, TALKS), which the official answers avoid.
+All sets accept every frequency word plus every original answer as guesses.
 A fixed seed reproduces the sampled order; it does not guarantee deterministic
 model output. The answer is never sent to the model.
 
@@ -42,6 +50,7 @@ wordle-solver providers check ollama
 wordle-solver models ollama
 wordle-solver eval --model ollama/llama3.2 --games 10 --seed 42
 wordle-solver eval --model omlx/mlx-community/Llama-3.2-3B-Instruct-4bit --set heldout --seed 42
+wordle-solver eval --model omlx/mlx-community/Llama-3.2-3B-Instruct-4bit --set matched --seed 42
 wordle-solver eval --model omniroute/your-model --games 10 --out router.jsonl
 ```
 
