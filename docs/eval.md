@@ -125,14 +125,18 @@ have no `option_seeding` field; new runs record `per-game`.
 <!-- generated:eval-results -->
 | Model | Set | Solved | Guesses per game | Entropy strategy | Mean P(answer) | Log loss | Uniform | Frequency | Time |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Clef Flash, 4-bit | answers | 48/50 | 4.08 | 3.44 | 34.5% | 1.817 | 2.191 | 1.809 | 70 s |
-| Clef Flash, 8-bit | answers | 50/50 | 4.04 | 3.44 | 35.1% | 1.734 | 2.080 | 1.768 | 74 s |
-| Clef, 8-bit | answers | 50/50 | 4.10 | 3.44 | 36.9% | 1.781 | 2.029 | 1.647 | 248 s |
-| Clef Flash, 4-bit | held-out | 47/50 | 4.92 | 4.20 | 31.6% | 2.332 | 1.894 | 2.771 | 141 s |
-| Clef Flash, 8-bit | held-out | 44/50 | 4.98 | 4.20 | 33.7% | 2.123 | 1.729 | 2.654 | 147 s |
+| Clef Flash, 4-bit | answers | 48/50 (87–99%) | 4.08 | 3.44 | 34.5% | 1.817 | 2.191 | 1.809 | 70 s |
+| Clef Flash, 8-bit | answers | 50/50 (93–100%) | 4.04 | 3.44 | 35.1% | 1.734 | 2.080 | 1.768 | 74 s |
+| Clef, 8-bit | answers | 50/50 (93–100%) | 4.10 | 3.44 | 36.9% | 1.781 | 2.029 | 1.647 | 248 s |
+| Clef Flash, 4-bit | held-out | 47/50 (84–98%) | 4.92 | 4.20 | 31.6% | 2.332 | 1.894 | 2.771 | 141 s |
+| Clef Flash, 8-bit | held-out | 44/50 (76–94%) | 4.98 | 4.20 | 33.7% | 2.123 | 1.729 | 2.654 | 147 s |
 <!-- /generated:eval-results -->
 
-Guesses per game counts an unsolved game as 6. Mean P(answer) and the log
+The range after Solved is the 95% Wilson interval for the solve rate; with
+50 games most rows overlap, so small differences in solves are not
+evidence. Guesses per game counts an unsolved game as 6, unlike the
+benchmark's means in [analysis](analysis.md), which average solved games
+only, so the two don't compare directly. Mean P(answer) and the log
 losses cover only the turns where the answer was among the offered words;
 lower log loss is better, and the uniform and frequency columns are the
 baselines on those same turns. Time is wall-clock time for the 50 games.

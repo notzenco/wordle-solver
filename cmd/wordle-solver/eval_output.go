@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	modeleval "github.com/notzenco/wordle-solver/internal/eval"
 	"io"
 	"text/tabwriter"
 	"time"
@@ -21,7 +22,12 @@ func writeEvalSummary(out io.Writer, s evalSummary) {
 	fmt.Fprintf(out, "\n%s (%s, %s)\n\n", s.Model, s.Kind, s.Options)
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	row := func(label string, value any) { fmt.Fprintf(w, "  %s\t%v\n", label, value) }
-	row("Solved", fmt.Sprintf("%d / %d eligible games", s.Solved, s.Eligible))
+	if s.Eligible > 0 {
+		lo, hi := modeleval.Wilson(s.Solved, s.Eligible)
+		row("Solved", fmt.Sprintf("%d / %d eligible games (95%% CI %.0f–%.0f%%)", s.Solved, s.Eligible, 100*lo, 100*hi))
+	} else {
+		row("Solved", "0 / 0 eligible games")
+	}
 	row("Games", fmt.Sprintf("%d total, %d rerouted", s.Games, s.Rerouted))
 	if s.Eligible > 0 {
 		row("Guesses", fmt.Sprintf("%d total, %.2f per game", s.Guesses, float64(s.Guesses)/float64(s.Eligible)))
