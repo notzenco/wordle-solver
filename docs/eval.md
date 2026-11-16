@@ -107,6 +107,14 @@ summary. Stderr announces the run's request budget (six per game) and
 reports each game as it ends; stdout shows the summary: eligible games, wins
 and rerouting counts.
 
+`--jobs N` plays up to N games at once (the first plays alone, in case it
+reveals a decision model); the transcript keeps the sample order, so it is
+the same as a run with one job. `--resume PATH` finishes an interrupted run:
+it reads the settings from the run record, skips the games already written
+and appends the rest and the summary. Only `--base-url`, `--api-key-env`
+and `--jobs` may be given with it. A game lost to an outage is not written,
+so resuming plays it again.
+
 Game fields use the Go names shown above (`Answer`, `Solved`, `Guesses`,
 `Attempts`, …). For example, the answers a run failed:
 

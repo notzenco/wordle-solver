@@ -76,6 +76,8 @@ var allOptions = []option{
 	{"eval.temperature", "temperature", "T", "0", "float", "sampling temperature (chat only)", true},
 	{"eval.max-tokens", "max-tokens", "N", "64", "uint", "reply token limit (chat only)", true},
 	{"eval.timeout", "timeout", "DURATION", "1m0s", "duration", "per-request timeout, such as 30s or 2m", true},
+	{"eval.jobs", "jobs", "N", "1", "int", "games to play at once; the transcript keeps the sample order", true},
+	{"eval.resume", "resume", "PATH", "", "string", "finish an interrupted run, with the settings its transcript records", false},
 	{"eval.out", "out", "PATH", "", "string", "transcript file to create (default: a new file in the data folder's evals directory)", true},
 	{"eval.base-url", "base-url", "URL", "", "string", "one-off OpenAI-compatible server; --model is then the bare model id", true},
 	{"eval.api-key-env", "api-key-env", "NAME", "", "string", "environment variable holding the API key", true},
@@ -167,7 +169,7 @@ var commands = []*command{
 			"against the entropy strategy on the same answers. Chat models reply with a word; decision\n" +
 			"models choose from the offered options. Each run writes a JSON lines transcript.",
 		options: []string{"eval.model", "eval.games", "eval.set", "eval.seed", "hard", "eval.kind", "eval.options",
-			"eval.max-options", "eval.distractors", "eval.temperature", "eval.max-tokens", "eval.timeout", "eval.out",
+			"eval.max-options", "eval.distractors", "eval.temperature", "eval.max-tokens", "eval.timeout", "eval.out", "eval.jobs", "eval.resume",
 			"eval.base-url", "eval.api-key-env"},
 		examples: []string{
 			"wordle-solver eval --model ollama/llama3.2 --games 20 --seed 42",
