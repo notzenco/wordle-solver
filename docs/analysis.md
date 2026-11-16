@@ -30,7 +30,7 @@ Generated with go1.27.3 on darwin/arm64 (18 CPUs), 2315 answers, at most 6 guess
 | expected | 3.521 | 0 (0.00%) | 3.605 | 14 (0.60%) |
 | minimax | 3.549 | 0 (0.00%) | 3.638 | 13 (0.56%) |
 | freq | 3.650 | 22 (0.95%) | 3.650 | 22 (0.95%) |
-| planner | 3.593 | 0 (0.00%) | 3.603 | 12 (0.52%) |
+| planner | 3.593 | 0 (0.00%) | 3.597 | 8 (0.35%) |
 <!-- /generated:headline -->
 
 "Mean guesses" averages the games that were solved; "Failed" counts games
@@ -85,16 +85,16 @@ With *n* candidates left, a guess splits them into groups of sizes
 <!-- generated:results -->
 | Strategy | Mode | Opener | Mean | 1 | 2 | 3 | 4 | 5 | 6 | Failed | Runtime | Positions |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| entropy | Normal | RAISE | 3.495 | 1 | 61 | 1139 | 1020 | 92 | 2 | 0 (0.00%) | 319 ms | 2479 |
-| expected | Normal | RAISE | 3.521 | 1 | 61 | 1074 | 1089 | 90 | 0 | 0 (0.00%) | 346 ms | 2494 |
-| minimax | Normal | RAISE | 3.549 | 1 | 65 | 1001 | 1159 | 89 | 0 | 0 (0.00%) | 548 ms | 2504 |
-| freq | Normal | ALERT | 3.650 | 1 | 130 | 912 | 933 | 262 | 55 | 22 (0.95%) | 15 ms | 2293 |
-| planner | Normal | RAISE | 3.593 | 1 | 120 | 918 | 1078 | 178 | 20 | 0 (0.00%) | 551 ms | 2392 |
-| entropy | Hard | RAISE | 3.582 | 1 | 127 | 998 | 928 | 205 | 44 | 12 (0.52%) | 71 ms | 2313 |
-| expected | Hard | RAISE | 3.605 | 1 | 126 | 953 | 961 | 221 | 39 | 14 (0.60%) | 60 ms | 2316 |
-| minimax | Hard | RAISE | 3.638 | 1 | 124 | 900 | 1007 | 223 | 47 | 13 (0.56%) | 68 ms | 2322 |
-| freq | Hard | ALERT | 3.650 | 1 | 130 | 912 | 933 | 262 | 55 | 22 (0.95%) | 16 ms | 2293 |
-| planner | Hard | RAISE | 3.603 | 1 | 130 | 924 | 1009 | 205 | 34 | 12 (0.52%) | 277 ms | 2306 |
+| entropy | Normal | RAISE | 3.495 | 1 | 61 | 1139 | 1020 | 92 | 2 | 0 (0.00%) | 334 ms | 2479 |
+| expected | Normal | RAISE | 3.521 | 1 | 61 | 1074 | 1089 | 90 | 0 | 0 (0.00%) | 343 ms | 2494 |
+| minimax | Normal | RAISE | 3.549 | 1 | 65 | 1001 | 1159 | 89 | 0 | 0 (0.00%) | 562 ms | 2504 |
+| freq | Normal | ALERT | 3.650 | 1 | 130 | 912 | 933 | 262 | 55 | 22 (0.95%) | 14 ms | 2293 |
+| planner | Normal | RAISE | 3.593 | 1 | 120 | 918 | 1078 | 178 | 20 | 0 (0.00%) | 556 ms | 2392 |
+| entropy | Hard | RAISE | 3.582 | 1 | 127 | 998 | 928 | 205 | 44 | 12 (0.52%) | 63 ms | 2313 |
+| expected | Hard | RAISE | 3.605 | 1 | 126 | 953 | 961 | 221 | 39 | 14 (0.60%) | 63 ms | 2316 |
+| minimax | Hard | RAISE | 3.638 | 1 | 124 | 900 | 1007 | 223 | 47 | 13 (0.56%) | 75 ms | 2322 |
+| freq | Hard | ALERT | 3.650 | 1 | 130 | 912 | 933 | 262 | 55 | 22 (0.95%) | 15 ms | 2293 |
+| planner | Hard | RAISE | 3.597 | 1 | 128 | 933 | 1016 | 195 | 34 | 8 (0.35%) | 237 ms | 2321 |
 <!-- /generated:results -->
 
 Columns 1–6 count the games won in that many guesses.
@@ -133,7 +133,7 @@ letters but splits the answers less evenly.
 - **expected, hard** (14): FOYER, GONER, GRAZE, MATCH, POUND, SHAVE, SWORE, TATTY, WASTE, WATCH, WATER, WIGHT, WILLY, WOUND
 - **minimax, hard** (13): FOYER, GONER, GRAZE, MATCH, POUND, SHAPE, SHAVE, SWORE, TATTY, WASTE, WATCH, WATER, WOUND
 - **freq, hard** (22): CATCH, CRACK, DADDY, FOYER, GONER, HATCH, HOLLY, JOLLY, POUND, PRIZE, RARER, SHAVE, STASH, TASTE, TATTY, TAUNT, TIGHT, VAUNT, WILLY, WITTY, WOOLY, WOUND
-- **planner, hard** (12): FOYER, GONER, GRAZE, PATCH, SWORE, TIGHT, VAUNT, WASTE, WATCH, WATER, WIGHT, WOUND
+- **planner, hard** (8): FOYER, GONER, GRAZE, JAZZY, SWORE, WASTE, WIGHT, WOUND
 <!-- /generated:failures -->
 
 ## Discussion
@@ -162,8 +162,8 @@ games (about 1%) even in normal mode. It is also by far the cheapest, since
 it never computes a pattern.
 
 **Looking ahead buys safety, not speed.** The planner maximises the answers
-it is *sure* to solve within the next three guesses. That ties entropy for
-the fewest Hard Mode failures (12), but in normal mode its mean is worse
+it is *sure* to solve within the next three guesses. That gives it the
+fewest Hard Mode failures (8, against 12 for entropy), but in normal mode its mean is worse
 than the other search strategies, with more games taking five or six
 guesses. Its objective counts guaranteed wins and ignores how many guesses
 a game takes, and it only considers 16 candidate guesses. That makes it a

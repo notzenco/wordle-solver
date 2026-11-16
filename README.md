@@ -68,7 +68,7 @@ Every answer on the list, at most six guesses; the mean counts solved games.
 | expected | 3.521 | 0 (0.00%) | 3.605 | 14 (0.60%) |
 | minimax | 3.549 | 0 (0.00%) | 3.638 | 13 (0.56%) |
 | freq | 3.650 | 22 (0.95%) | 3.650 | 22 (0.95%) |
-| planner | 3.593 | 0 (0.00%) | 3.603 | 12 (0.52%) |
+| planner | 3.593 | 0 (0.00%) | 3.597 | 8 (0.35%) |
 <!-- /generated:headline -->
 
 The [analysis](docs/analysis.md) has the method, the full distributions,

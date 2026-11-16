@@ -1,6 +1,11 @@
 package wordle
 
-import "sort"
+import (
+	"hash/fnv"
+	"sort"
+	"sync"
+	"sync/atomic"
+)
 
 // ValidWords includes every frequency word and every original answer.
 func ValidWords() []string {
@@ -19,6 +24,9 @@ func ValidWords() []string {
 	return out
 }
 
+// IsValid reports whether w is in ValidWords.
+func IsValid(w string) bool { _, ok := frequency[w]; return ok || InAnswers(w) }
+
 // PlayPool applies entropy's scoring rule to an explicit candidate pool.
 // The ordinary answer benchmark continues to use the precomputed table.
 func (st Strategy) PlayPool(answer string, hard bool, pool []string) []Turn {
@@ -31,20 +39,11 @@ func (st Strategy) PlayPool(answer string, hard bool, pool []string) []Turn {
 	cands := append([]string(nil), pool...)
 	history := []Turn{}
 	for len(history) < 6 && len(cands) > 0 {
-		best := ""
-		bestScore := -1.0
-		for _, g := range cands {
-			if hard && !HardValid(g, history) {
-				continue
-			}
-			var buckets [243]int
-			for _, a := range cands {
-				buckets[scoreCode(g, a)]++
-			}
-			h := entropy(&buckets, len(cands))
-			if h > bestScore {
-				best, bestScore = g, h
-			}
+		var best string
+		if len(history) == 0 {
+			best = poolOpening(cands, hard)
+		} else {
+			best = bestInPool(cands, history, hard)
 		}
 		if best == "" {
 			break
@@ -57,6 +56,50 @@ func (st Strategy) PlayPool(answer string, hard bool, pool []string) []Turn {
 		cands = Filter(cands, history)
 	}
 	return history
+}
+
+func bestInPool(cands []string, history []Turn, hard bool) string {
+	best := ""
+	bestScore := -1.0
+	for _, g := range cands {
+		if hard && !HardValid(g, history) {
+			continue
+		}
+		var buckets [243]int
+		for _, a := range cands {
+			buckets[scoreCode(g, a)]++
+		}
+		h := entropy(&buckets, len(cands))
+		if h > bestScore {
+			best, bestScore = g, h
+		}
+	}
+	return best
+}
+
+var (
+	openings     sync.Map // pool hash and mode -> first guess
+	poolOpenings atomic.Int64
+)
+
+// poolOpening is the first guess for pool, cached by its contents and order
+// (order breaks ties) because every game over the same pool opens the same way.
+func poolOpening(pool []string, hard bool) string {
+	h := fnv.New64a()
+	for _, w := range pool {
+		h.Write([]byte(w))
+	}
+	key := [2]uint64{h.Sum64(), 0}
+	if hard {
+		key[1] = 1
+	}
+	if g, ok := openings.Load(key); ok {
+		return g.(string)
+	}
+	poolOpenings.Add(1)
+	g := bestInPool(pool, nil, hard)
+	openings.Store(key, g)
+	return g
 }
 
 // FrequencyWeight is the prior for the eval's frequency baseline: the same

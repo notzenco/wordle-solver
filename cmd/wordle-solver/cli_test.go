@@ -129,3 +129,13 @@ func TestCleanRemovesSettingsAndNamesKeptTranscripts(t *testing.T) {
 		t.Errorf("transcripts should be kept and named: %v\n%s", err, out)
 	}
 }
+
+func TestSimRejectsWordsOutsideTheDictionary(t *testing.T) {
+	code, _, errOut := run(t, "sim", "qqqqq")
+	if code != 2 || !strings.Contains(errOut, "not in the word list") {
+		t.Fatalf("sim qqqqq: code %d, %q", code, errOut)
+	}
+	if code, _, errOut := run(t, "sim", "adieu"); code != 0 {
+		t.Fatalf("sim adieu is a real word: code %d, %q", code, errOut)
+	}
+}

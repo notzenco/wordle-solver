@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -282,5 +283,55 @@ func TestExcludeIsSoft(t *testing.T) {
 	s.Exclude("cigar")
 	if h := s.Solve("cigar"); h[len(h)-1].Pattern != Solved {
 		t.Errorf("never found the repeated answer: %v", h)
+	}
+}
+
+// The look-ahead must judge each branch by the guesses legal in that branch,
+// not by the clues known before the branch's guess.
+func TestHardLookaheadKeepsBranchCluesLegal(t *testing.T) {
+	s := NewSolver(rand.New(rand.NewPCG(1, 1)), 0, 0)
+	s.Hard = true
+	s.History = []Turn{{"raise", "bbbbb"}}
+	branch := append(slices.Clone(s.History), Turn{"could", "ybybb"})
+	var bucket []string
+	for _, a := range Filter(s.words, s.History) {
+		if Score("could", a) == "ybybb" {
+			bucket = append(bucket, a)
+		}
+	}
+	if len(bucket) < 3 {
+		t.Fatalf("bucket too small to need a look-ahead: %v", bucket)
+	}
+	if g, _ := s.bestForTwo(bucket, branch); !HardValid(g, branch) {
+		t.Fatalf("planned %s after COULD/ybybb, which breaks Hard Mode", strings.ToUpper(g))
+	}
+}
+
+// The opening over an explicit pool depends only on the pool and mode, and
+// over the 9,000-word held-out pool it costs about a second, so it is
+// computed once rather than once per game.
+func TestPlayPoolComputesEachOpeningOnce(t *testing.T) {
+	var pool []string
+	for _, w := range ValidWords() {
+		if !InAnswers(w) {
+			pool = append(pool, w)
+			if len(pool) == 300 {
+				break
+			}
+		}
+	}
+	st, _ := StrategyByName("entropy")
+	before := poolOpenings.Load()
+	first := st.PlayPool(pool[0], false, pool)
+	second := st.PlayPool(pool[1], false, slices.Clone(pool))
+	if n := poolOpenings.Load() - before; n != 1 {
+		t.Fatalf("computed the opening %d times for one pool", n)
+	}
+	if first[0].Guess != second[0].Guess {
+		t.Fatalf("openings differ: %s, %s", first[0].Guess, second[0].Guess)
+	}
+	st.PlayPool(pool[0], true, pool)
+	if n := poolOpenings.Load() - before; n != 2 {
+		t.Fatalf("Hard Mode needs its own opening; computed %d in all", n)
 	}
 }

@@ -222,7 +222,7 @@ func planner(p *position) int {
 	case turnsLeft >= 3 && len(cands) > 3:
 		return wordIndex[s.bestForThree(cands, s.rank(cands, cands))]
 	default:
-		g, _ := s.bestForTwo(cands)
+		g, _ := s.bestForTwo(cands, s.History)
 		return wordIndex[g]
 	}
 }
