@@ -103,6 +103,14 @@ to 64 words that fit the clues (candidates mode). The same seed gives every
 model the same answers, so rows within a set compare directly. Transcripts
 are in [eval-results](eval-results).
 
+These runs predate per-game option sampling: every game drew its options
+from the run seed and turn alone, so all 50 games in a run opened on the
+same 64 words, and the answer was among them on the first turn in none of
+them. The table still compares the models fairly with one another, since
+each saw the same options, but it says little about how Clef opens, and
+its log losses cover fewer turns than a current run would. Their run records
+have no `option_seeding` field; new runs record `per-game`.
+
 | Model | Set | Solved | Guesses per game | Entropy strategy | Mean P(answer) | Log loss | Uniform | Frequency | Time |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Clef Flash, 4-bit | answers | 48/50 | 4.08 | 3.44 | 34.5% | 1.817 | 2.191 | 1.809 | 70 s |
@@ -170,8 +178,9 @@ wordle-solver eval --model omlx/clef-flash-4bit --max-options 64 --distractors 4
 SystemOne requires candidates mode. Each turn filters the full valid vocabulary
 by the history, caps consistent words at `--max-options` (default 64), then
 adds up to `--distractors N` inconsistent valid words and shuffles. No
-inconsistent words exist before clues. Sampling uses the run seed plus turn
-number and never consults the answer. Both adapters receive rules and plain-text
+inconsistent words exist before clues. Sampling is seeded by the run seed,
+the game's position in the run and the turn, so each game gets its own
+options, and never consults the answer. Both adapters receive rules and plain-text
 colour history without strategy recommendations. Each attempt records the exact
 options; out-of-list choices are malformed. Consistent repeats remain allowed.
 

@@ -66,6 +66,7 @@ type PlayOptions struct {
 	MaxOptions  int
 	Distractors int
 	Seed        uint64
+	Game        int // index within the run; options are drawn per game and turn
 	// Retries lets a rejected word (malformed, not in the word list, or
 	// breaking Hard Mode) be replaced without using a turn, up to this many
 	// times per turn, as the game itself rejects such words. Eval scoring

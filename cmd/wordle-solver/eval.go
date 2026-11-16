@@ -165,7 +165,7 @@ func runEval(r evalRun) error {
 	if r.kind == "systemone" {
 		prompt["instructions"] = systemoneInstructions
 	}
-	meta := map[string]any{"type": "run", "prompt": prompt, "model": r.model, "provider": r.name, "base_url": r.provider.BaseURL, "settings": settings,
+	meta := map[string]any{"type": "run", "option_seeding": "per-game", "prompt": prompt, "model": r.model, "provider": r.name, "base_url": r.provider.BaseURL, "settings": settings,
 		"kind_detected": r.detected, "seed": r.seed, "date": time.Now().UTC().Format(time.RFC3339), "version": versionString()}
 	if err = enc.Encode(meta); err != nil {
 		return err
@@ -176,7 +176,7 @@ func runEval(r evalRun) error {
 	}
 	s := evalSummary{Model: r.model, Kind: r.kind, Options: r.mode, Out: r.out, Games: len(answers), Distractors: r.distractors}
 	for i, a := range answers {
-		g := modeleval.PlayWithOptions(player, a, r.model, r.hard, modeleval.PlayOptions{Candidates: r.mode == "candidates", MaxOptions: r.maxOptions, Distractors: r.distractors, Seed: r.seed})
+		g := modeleval.PlayWithOptions(player, a, r.model, r.hard, modeleval.PlayOptions{Candidates: r.mode == "candidates", MaxOptions: r.maxOptions, Distractors: r.distractors, Seed: r.seed, Game: i})
 		if i == 0 && r.autoKind && g.Error == modeleval.ErrDecisionModel.Error() {
 			f.Close()
 			os.Remove(r.out)

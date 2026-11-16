@@ -59,10 +59,16 @@ func TestEvalRunRecordKeepsThePrompt(t *testing.T) {
 		t.Fatal(errOut)
 	}
 	b, _ := os.ReadFile(out)
-	var run struct{ Prompt map[string]string }
+	var run struct {
+		Prompt        map[string]string
+		OptionSeeding string `json:"option_seeding"`
+	}
 	json.Unmarshal([]byte(strings.SplitN(string(b), "\n", 2)[0]), &run)
 	if !strings.Contains(run.Prompt["state"], "Play Wordle") || !strings.Contains(run.Prompt["instructions"], "JSON object") {
 		t.Fatalf("run record lacks the prompt: %+v", run.Prompt)
+	}
+	if run.OptionSeeding != "per-game" {
+		t.Fatalf("run record lacks option_seeding: %q", run.OptionSeeding)
 	}
 }
 
