@@ -3,6 +3,7 @@ package wordle
 import (
 	"math"
 	"math/rand/v2"
+	"sort"
 	"sync"
 )
 
@@ -229,9 +230,52 @@ func planner(p *position) int {
 
 // Split describes how a guess divides the whole answer list.
 type Split struct {
-	Bits     float64 // entropy of the colour pattern
-	Expected float64 // answers expected to remain
-	Worst    int     // most answers any pattern can leave
+	Bits     float64 `json:"bits"`     // entropy of the colour pattern
+	Expected float64 `json:"expected"` // answers expected to remain
+	Worst    int     `json:"worst"`    // most answers any pattern can leave
+}
+
+// Ranked is a guess with how it splits the remaining candidates.
+type Ranked struct {
+	Word string `json:"word"`
+	Split
+	Fits bool `json:"fits"` // the guess could itself be the answer
+}
+
+// Rank returns the listed answers that fit history and up to n allowed
+// guesses ordered by information, most first; ties go to a guess that fits.
+func Rank(history []Turn, hard bool, n int) ([]string, []Ranked) {
+	p := &position{history: history, hard: hard, max: 6}
+	var cands []string
+	fits := make([]bool, len(Answers))
+	for i, a := range Answers {
+		if len(Filter([]string{a}, history)) == 1 {
+			p.cands = append(p.cands, i)
+			cands = append(cands, a)
+			fits[i] = true
+		}
+	}
+	if len(p.cands) == 0 {
+		return nil, nil
+	}
+	var all []Ranked
+	for g := range Answers {
+		if !allowedGuess(g, p) {
+			continue
+		}
+		var b [243]int
+		for _, a := range p.cands {
+			b[code(g, a)]++
+		}
+		all = append(all, Ranked{Answers[g], Split{entropy(&b, len(p.cands)), meanLeft(&b, len(p.cands)), worstLeft(&b)}, fits[g]})
+	}
+	sort.SliceStable(all, func(i, j int) bool {
+		if all[i].Bits != all[j].Bits {
+			return all[i].Bits > all[j].Bits
+		}
+		return all[i].Fits && !all[j].Fits
+	})
+	return cands, all[:min(n, len(all))]
 }
 
 // OpenerStats measures word as a first guess against every answer.

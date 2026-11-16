@@ -125,6 +125,7 @@ wordle-solver play                    # play today's puzzle yourself: coloured t
 wordle-solver play --random           # practise on a random answer (offline, not saved)
 wordle-solver assist                  # type your own words; it fills in the colours and suggests the next
 wordle-solver assist --manual         # the same while playing on the website: you type the colours too
+wordle-solver next slate:bygbb        # the best next guesses for clues so far, without a game
 wordle-solver                         # solve today's puzzle by itself with the human-like player (looked up, then saved)
 wordle-solver auto --by solver        # ... with the entropy strategy
 wordle-solver auto --by model --model omlx/clef-flash-4bit   # ... with a model, through the eval harness
