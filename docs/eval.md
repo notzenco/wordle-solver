@@ -92,8 +92,11 @@ and request-failure counts. Each game has
 the answer, success, attempts used, baseline count and success, difference,
 error counts, token total, duration and individual attempts with raw replies,
 reported models, patterns, problems and error messages. Durations are nanoseconds. Token
-usage is provider-reported and zero when omitted. An interrupted file may
-lack its summary. Stdout shows eligible games, wins and rerouting counts.
+usage is provider-reported and zero when omitted. Each game is written as
+it ends, so an interrupted run keeps the games it finished but lacks the
+summary. Stderr announces the run's request budget (six per game) and
+reports each game as it ends; stdout shows the summary: eligible games, wins
+and rerouting counts.
 
 ## Results
 

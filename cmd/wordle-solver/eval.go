@@ -175,6 +175,9 @@ func runEval(r evalRun) error {
 		player = &systemonePlayer{r.provider, r.model, r.timeout}
 	}
 	s := evalSummary{Model: r.model, Kind: r.kind, Options: r.mode, Out: r.out, Games: len(answers), Distractors: r.distractors}
+	// Progress goes to stderr so stdout keeps only the summary. Each game is
+	// written to the transcript as it ends, so an interrupted run keeps them.
+	fmt.Fprintf(stderr, "%s: %d games, up to %d requests; transcript %s\n", r.model, len(answers), 6*len(answers), r.out)
 	for i, a := range answers {
 		g := modeleval.PlayWithOptions(player, a, r.model, r.hard, modeleval.PlayOptions{Candidates: r.mode == "candidates", MaxOptions: r.maxOptions, Distractors: r.distractors, Seed: r.seed})
 		if i == 0 && r.autoKind && g.Error == modeleval.ErrDecisionModel.Error() {
@@ -187,6 +190,7 @@ func runEval(r evalRun) error {
 		} else {
 			s.add(g)
 		}
+		fmt.Fprintf(stderr, "game %d/%d: %s\n", i+1, len(answers), gameProgress(g))
 		// Redact an echoed configured key before persisting provider-controlled strings.
 		for i := range g.Attempts {
 			g.Attempts[i].Reply.Text = redact(r.provider, g.Attempts[i].Reply.Text)
@@ -213,6 +217,20 @@ func runEval(r evalRun) error {
 	}
 	writeEvalSummary(stdout, s)
 	return f.Sync()
+}
+
+func gameProgress(g modeleval.Result) string {
+	result := fmt.Sprintf("solved in %d", g.Guesses)
+	if !g.Solved {
+		result = "not solved"
+	}
+	if g.Rerouted {
+		result += ", rerouted"
+	}
+	if g.RequestFailures > 0 {
+		result += fmt.Sprintf(", %d failed requests", g.RequestFailures)
+	}
+	return fmt.Sprintf("%s (entropy %d)", result, g.Baseline)
 }
 
 func (s *evalSummary) add(g modeleval.Result) {
