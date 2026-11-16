@@ -87,3 +87,21 @@ func TestModelShareCountsChargedFailures(t *testing.T) {
 		t.Fatalf("a failed request used a turn, so the score is 2/6: code %d\n%s\n%s", code, out, errOut)
 	}
 }
+
+// A long run must not be silent: stderr announces the request budget and
+// reports each game as it finishes.
+func TestEvalReportsProgress(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"model":"m","choices":[{"message":{"content":"raise"}}]}`))
+	}))
+	defer s.Close()
+	code, _, errOut := runWith(t, "", "eval", "--home", t.TempDir(), "--base-url", s.URL, "--model", "m", "--kind", "chat", "--games", "2", "--seed", "1")
+	if code != 0 {
+		t.Fatal(errOut)
+	}
+	for _, want := range []string{"up to 12 requests", "game 1/2", "game 2/2"} {
+		if !strings.Contains(errOut, want) {
+			t.Errorf("stderr lacks %q:\n%s", want, errOut)
+		}
+	}
+}
