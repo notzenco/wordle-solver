@@ -19,6 +19,7 @@ type options struct {
 	target, max int
 	sloppy      float64
 	hard, copy  bool
+	offline     bool
 }
 
 func main() {
@@ -31,7 +32,7 @@ func main() {
 // solver reads and checks the options shared by the commands that play. A
 // zero --seed draws a new one, kept in c.seed so it can be shown.
 func (c *cmdCtx) solver() (options, *rand.Rand, error) {
-	o := options{target: c.int("target"), max: c.int("max"), sloppy: c.float("sloppy"), hard: c.bool("hard"), copy: c.bool("copy")}
+	o := options{target: c.int("target"), max: c.int("max"), sloppy: c.float("sloppy"), hard: c.bool("hard"), copy: c.bool("copy"), offline: c.bool("offline")}
 	switch {
 	case o.target != 0 && (o.target < 2 || o.target > 6):
 		return o, nil, usageError("--target must be between 2 and 6")
