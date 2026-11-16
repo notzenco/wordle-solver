@@ -223,6 +223,7 @@ func (c *cmdCtx) puzzle(rng *rand.Rand) (puzzle, error) {
 func autoClues(by string, m *modelSuggester, p puzzle, opts options) {
 	fmt.Fprintln(stdout, p.title())
 	var turns []wordle.Turn
+	result := ""
 	if by == "solver" {
 		fmt.Fprintln(stdout, "The entropy strategy plays from the colours alone; the answer is used only to score each guess.")
 		fmt.Fprintln(stdout)
@@ -259,16 +260,22 @@ func autoClues(by string, m *modelSuggester, p puzzle, opts options) {
 		}
 		if !r.Solved {
 			fmt.Fprintf(stdout, "\nNot solved; the answer was %s.\n", strings.ToUpper(p.answer))
+		} else {
+			result = fmt.Sprintf("%d/6", r.Guesses)
 		}
+	}
+	if result == "" {
+		result = score(turns)
 	}
 	fmt.Fprintln(stdout)
 	number := ""
 	if p.number >= 0 {
 		number = thousands(p.number) + " "
 	}
-	fmt.Fprint(stdout, shareText(number, turns))
+	share := shareTextScored(number, result, turns)
+	fmt.Fprint(stdout, share)
 	if opts.copy {
-		copyText(shareText(number, turns))
+		copyText(share)
 	}
 	fmt.Fprintln(stdout, "\nNot saved: only the human-like player's games go into your history.")
 }

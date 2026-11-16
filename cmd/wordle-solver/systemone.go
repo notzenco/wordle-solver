@@ -26,6 +26,8 @@ func gameState(o modeleval.Observation) string {
 	return b.String()
 }
 
+const systemoneInstructions = "Choose the next Wordle guess. Use the rules and colour history; avoid inconsistent words."
+
 type systemonePlayer struct {
 	provider provider
 	model    string
@@ -40,7 +42,7 @@ func (p *systemonePlayer) Guess(o modeleval.Observation) (modeleval.Reply, error
 	for _, w := range o.Options {
 		criteria[w] = strings.ToUpper(w)
 	}
-	body, _ := json.Marshal(map[string]any{"model": p.model, "state": gameState(o), "truncate": false, "questions": map[string]any{"guess": map[string]any{"type": "choice", "instructions": "Choose the next Wordle guess. Use the rules and colour history; avoid inconsistent words.", "criteria": criteria}}})
+	body, _ := json.Marshal(map[string]any{"model": p.model, "state": gameState(o), "truncate": false, "questions": map[string]any{"guess": map[string]any{"type": "choice", "instructions": systemoneInstructions, "criteria": criteria}}})
 	b, e := apiRequest(&http.Client{Timeout: p.timeout}, p.provider, "/systemone", bytes.NewReader(body))
 	if e != nil {
 		return modeleval.Reply{}, e
@@ -62,19 +64,21 @@ func (p *systemonePlayer) Guess(o modeleval.Observation) (modeleval.Reply, error
 		return modeleval.Reply{}, fmt.Errorf("invalid SystemOne response")
 	}
 	g := r.Answers.Guess
+	// Malformed replies keep the model and usage so rerouting still counts.
+	meta := modeleval.Reply{Model: r.Model, Tokens: r.Usage.InputTokens}
 	if _, ok := criteria[g.Choice]; !ok {
-		return modeleval.Reply{}, fmt.Errorf("SystemOne returned an unoffered choice")
+		return meta, fmt.Errorf("%w: SystemOne returned an unoffered choice", modeleval.ErrMalformed)
 	}
 	sum := 0.0
 	for _, w := range o.Options {
 		v, ok := g.Probabilities[w]
 		if !ok || math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1 {
-			return modeleval.Reply{}, fmt.Errorf("invalid SystemOne probabilities")
+			return meta, fmt.Errorf("%w: invalid SystemOne probabilities", modeleval.ErrMalformed)
 		}
 		sum += v
 	}
 	if math.Abs(sum-1) > 0.01 || len(g.Probabilities) != len(criteria) {
-		return modeleval.Reply{}, fmt.Errorf("invalid SystemOne probability distribution")
+		return meta, fmt.Errorf("%w: invalid SystemOne probability distribution", modeleval.ErrMalformed)
 	}
 	return modeleval.Reply{Text: g.Choice, Model: r.Model, Tokens: r.Usage.InputTokens, Confidence: g.Confidence, Probabilities: g.Probabilities}, nil
 }

@@ -103,7 +103,8 @@ type Attempt struct {
 	Options      []string
 	Metrics      *Metrics
 	Inconsistent bool
-	Free         bool // rejected without using a turn (PlayOptions.Retries)
+	Error        string // why the request failed or the reply was malformed
+	Free         bool   // rejected without using a turn (PlayOptions.Retries)
 }
 type Result struct {
 	Answer           string
@@ -116,6 +117,7 @@ type Result struct {
 	Invalid          int
 	Malformed        int
 	HardViolations   int
+	RequestFailures  int
 	Tokens           int
 	Duration         time.Duration
 	Rerouted         bool
@@ -128,6 +130,25 @@ func Play(p Player, answer, model string, hard bool) Result {
 }
 
 var ErrDecisionModel = errors.New("model is not a chat model; use --kind systemone --options candidates")
+
+// ErrMalformed marks a reply that arrived but broke the protocol. Players
+// return it with whatever Model and Tokens they decoded, so rerouting and
+// usage still count, and the attempt is scored as malformed rather than as
+// a request failure.
+var ErrMalformed = errors.New("malformed reply")
+
+var snapshot = regexp.MustCompile(`^-(\d{4}-\d{2}-\d{2}|\d{8})$`)
+
+// SameModel reports whether a provider's reported model is the requested
+// one, allowing only Ollama's default tag and a dated snapshot suffix, the
+// two ways providers name a model differently without changing it.
+func SameModel(requested, reported string) bool {
+	if reported == requested || reported == requested+":latest" {
+		return true
+	}
+	rest, ok := strings.CutPrefix(reported, requested)
+	return ok && snapshot.MatchString(rest)
+}
 
 func PlayWithOptions(p Player, answer, model string, hard bool, opts PlayOptions) Result {
 	start := time.Now()
@@ -155,14 +176,21 @@ func PlayWithOptions(p Player, answer, model string, hard bool, opts PlayOptions
 		reply, err := p.Guess(Observation{History: append([]wordle.Turn(nil), history...), Attempts: turn, Hard: hard, Options: offered})
 		a := Attempt{Reply: reply, Duration: time.Since(t), Options: offered, Metrics: Measure(answer, offered, reply.Probabilities)}
 		r.Tokens += reply.Tokens
-		if reply.Model != "" && reply.Model != model {
+		if reply.Model != "" && !SameModel(model, reply.Model) {
 			r.Rerouted = true
 		}
 		guess, e := Parse(reply.Text)
 		a.Guess = guess
 		a.Inconsistent = valid[guess] && len(wordle.Filter([]string{guess}, history)) == 0
+		if err != nil {
+			a.Error = err.Error()
+		}
 		switch {
+		case errors.Is(err, ErrMalformed):
+			r.Malformed++
+			a.Problem = "malformed"
 		case err != nil:
+			r.RequestFailures++
 			a.Problem = "request failed"
 		case e != nil || opts.Candidates && !slices.Contains(offered, guess):
 			r.Malformed++

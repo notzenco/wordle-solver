@@ -9,7 +9,7 @@ import (
 
 type evalSummary struct {
 	Model, Kind, Options, Out                               string
-	Games, Eligible, Solved, Rerouted                       int
+	Games, Eligible, Solved, Rerouted, RequestFailures      int
 	Guesses, Beyond, Invalid, Malformed, Violations, Tokens int
 	Duration                                                time.Duration
 	MetricCount, Choices, Inconsistent                      int
@@ -37,6 +37,7 @@ func writeEvalSummary(out io.Writer, s evalSummary) {
 	row("Time", s.Duration.Round(time.Millisecond))
 	row("Invalid words", s.Invalid)
 	row("Malformed replies", s.Malformed)
+	row("Request failures", s.RequestFailures)
 	row("Hard Mode violations", s.Violations)
 	w.Flush()
 	if s.Kind == "systemone" {

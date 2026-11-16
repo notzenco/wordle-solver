@@ -1,6 +1,8 @@
 package eval
 
 import (
+	"errors"
+	"fmt"
 	"github.com/notzenco/wordle-solver/internal/wordle"
 	"testing"
 )
@@ -72,5 +74,54 @@ func TestRetriesLetRejectedWordsSkipTheTurnCount(t *testing.T) {
 	capped := PlayWithOptions(&Scripted{Replies: []Reply{{Text: "zzzzz"}, {Text: "zzzzz"}, {Text: "crazy"}}}, "crazy", "m", false, PlayOptions{Retries: 1})
 	if capped.Guesses != 2 {
 		t.Fatalf("one retry should let the second rejection use a turn: %d", capped.Guesses)
+	}
+}
+
+// failing returns err on every call, with whatever metadata reply carries.
+type failing struct {
+	reply Reply
+	err   error
+}
+
+func (p failing) Guess(Observation) (Reply, error) { return p.reply, p.err }
+
+func TestRequestFailuresAreCountedWithTheirCause(t *testing.T) {
+	r := Play(failing{err: errors.New("connection refused")}, "cigar", "m", false)
+	if r.RequestFailures != 6 || r.Guesses != 6 || r.Solved {
+		t.Fatalf("%+v", r)
+	}
+	if a := r.Attempts[0]; a.Problem != "request failed" || a.Error != "connection refused" {
+		t.Fatalf("attempt %+v", a)
+	}
+}
+
+func TestMalformedRepliesKeepTheirModelAndTokens(t *testing.T) {
+	p := failing{reply: Reply{Model: "other", Tokens: 7}, err: fmt.Errorf("%w: unoffered choice", ErrMalformed)}
+	r := Play(p, "cigar", "wanted", false)
+	if !r.Rerouted || r.Tokens != 42 || r.Malformed != 6 || r.RequestFailures != 0 {
+		t.Fatalf("%+v", r)
+	}
+	if a := r.Attempts[0]; a.Problem != "malformed" || a.Error == "" {
+		t.Fatalf("attempt %+v", a)
+	}
+}
+
+func TestSameModelAllowsTagAndSnapshotAliases(t *testing.T) {
+	for _, c := range []struct {
+		requested, reported string
+		same                bool
+	}{
+		{"llama3.2", "llama3.2", true},
+		{"llama3.2", "llama3.2:latest", true},
+		{"gpt-4o", "gpt-4o-2024-08-06", true},
+		{"claude-x", "claude-x-20250101", true},
+		{"gpt-4o", "gpt-4o-mini", false},
+		{"llama3.2", "llama3.2:70b", false},
+		{"gpt-4o", "gpt-4o-2024-08-06-extra", false},
+		{"clef", "other", false},
+	} {
+		if got := SameModel(c.requested, c.reported); got != c.same {
+			t.Errorf("SameModel(%q, %q) = %v", c.requested, c.reported, got)
+		}
 	}
 }

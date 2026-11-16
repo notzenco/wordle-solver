@@ -61,8 +61,14 @@ func printGame(number string, turns []wordle.Turn, toClipboard bool) {
 }
 
 func shareText(number string, turns []wordle.Turn) string {
+	return shareTextScored(number, score(turns), turns)
+}
+
+// shareTextScored takes the score separately for games where a turn can be
+// used without a guess, as a model's failed request is.
+func shareTextScored(number, score string, turns []wordle.Turn) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Wordle %s%s\n\n", number, score(turns))
+	fmt.Fprintf(&b, "Wordle %s%s\n\n", number, score)
 	for _, t := range turns {
 		b.WriteString(wordle.Emoji(t.Pattern) + "\n")
 	}
