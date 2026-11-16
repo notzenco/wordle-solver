@@ -150,6 +150,12 @@ func SameModel(requested, reported string) bool {
 	return ok && snapshot.MatchString(rest)
 }
 
+// optionSeed gives every game and turn of a run its own option sample, so
+// games don't all open on the same words.
+func optionSeed(seed uint64, game, turn int) uint64 {
+	return rand.New(rand.NewPCG(seed, uint64(game)<<8|uint64(turn))).Uint64()
+}
+
 func PlayWithOptions(p Player, answer, model string, hard bool, opts PlayOptions) Result {
 	start := time.Now()
 	r := Result{Answer: answer, BaselineStrategy: "entropy"}
@@ -171,7 +177,7 @@ func PlayWithOptions(p Player, answer, model string, hard bool, opts PlayOptions
 		t := time.Now()
 		var offered []string
 		if opts.Candidates {
-			offered = Options(history, opts.MaxOptions, opts.Distractors, opts.Seed+uint64(turn))
+			offered = Options(history, opts.MaxOptions, opts.Distractors, optionSeed(opts.Seed, opts.Game, turn))
 		}
 		reply, err := p.Guess(Observation{History: append([]wordle.Turn(nil), history...), Attempts: turn, Hard: hard, Options: offered})
 		a := Attempt{Reply: reply, Duration: time.Since(t), Options: offered, Metrics: Measure(answer, offered, reply.Probabilities)}

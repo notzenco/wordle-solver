@@ -4,6 +4,7 @@ import (
 	"github.com/notzenco/wordle-solver/internal/wordle"
 	"math"
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -66,5 +67,29 @@ func TestFrequencyBaselineBeatsUniformOnAnswers(t *testing.T) {
 	}
 	if freq >= uniform {
 		t.Fatalf("frequency baseline %.3f is no better than uniform %.3f", freq/300, uniform/300)
+	}
+}
+
+// recorder answers with its first offered word and keeps what it was offered.
+type recorder struct{ offered [][]string }
+
+func (r *recorder) Guess(o Observation) (Reply, error) {
+	r.offered = append(r.offered, o.Options)
+	return Reply{Text: o.Options[0]}, nil
+}
+
+// Each game must get its own options: with one seed for every game, every
+// run opened on the same 64 words and the answer was almost never offered.
+func TestEachGameGetsItsOwnOptions(t *testing.T) {
+	first := func(game int) []string {
+		r := &recorder{}
+		PlayWithOptions(r, "cigar", "m", false, PlayOptions{Candidates: true, MaxOptions: 64, Seed: 42, Game: game})
+		return r.offered[0]
+	}
+	if a, b := first(0), first(1); slices.Equal(a, b) {
+		t.Fatal("games 0 and 1 were offered the same opening words")
+	}
+	if a, b := first(3), first(3); !slices.Equal(a, b) {
+		t.Fatal("the same seed and game must repeat")
 	}
 }
