@@ -157,7 +157,7 @@ func (s *Solver) pick(cands []string, ahead bool) string {
 	case 1:
 		return s.choose(cands)
 	case 2:
-		g, _ := s.bestForTwo(cands)
+		g, _ := s.bestForTwo(cands, s.History)
 		return g
 	}
 	// With four or more of six guesses left a slip costs little and can't
@@ -304,11 +304,14 @@ outer:
 	return s.choose(pool), true
 }
 
-// bestForTwo maximises the chance of solving within this guess and the
-// next: it wins now if it is the answer, or next turn if the clue it gets
-// leaves a single word. Fitting words win ties, as a person would play them.
-// It returns the guess and how many of cands it is sure to solve.
-func (s *Solver) bestForTwo(cands []string) (string, int) {
+// bestForTwo maximises the answers it is sure to solve within this guess
+// and the next: it wins now if it is the answer, or next turn if the clue it
+// gets leaves a single word. Larger groups could still be guessed right, but
+// they are not certain, so they don't count. Fitting words win ties, as a person would play them.
+// It returns the guess and how many of cands it is sure to solve. history
+// is the clues known when the guess is made, which inside the look-ahead
+// includes the hypothetical guess that led here.
+func (s *Solver) bestForTwo(cands []string, history []Turn) (string, int) {
 	best, bestWins := cands[0], -1
 	consider := func(g string) {
 		if wins := singletons(g, cands); wins > bestWins {
@@ -324,7 +327,7 @@ func (s *Solver) bestForTwo(cands []string) (string, int) {
 			fits[c] = true
 		}
 		for _, g := range s.words {
-			if !fits[g] && bestWins < len(cands) && s.allowed(g) {
+			if !fits[g] && bestWins < len(cands) && (!s.Hard || HardValid(g, history)) {
 				consider(g)
 			}
 		}
@@ -389,7 +392,8 @@ func (s *Solver) bestForThree(cands, ranked []string) string {
 				// Guessing either of two words is sure to solve both.
 				wins += len(bucket)
 			} else {
-				_, w := s.bestForTwo(bucket)
+				branch := append(slices.Clone(s.History), Turn{g, decode(p)})
+				_, w := s.bestForTwo(bucket, branch)
 				wins += w
 			}
 		}

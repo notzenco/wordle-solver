@@ -42,8 +42,8 @@ text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:12px}
 <text class="muted" x="523.7" y="220">same in both modes</text>
 <text class="ink2 num" x="740" y="220" text-anchor="end">22 / 22</text>
 <text class="ink" x="20" y="260">planner</text>
-<line class="axis" x1="418.3" x2="435.0" y1="256" y2="256"/>
+<line class="axis" x1="418.3" x2="425.7" y1="256" y2="256"/>
 <circle class="s1 ring" cx="418.3" cy="256" r="6" stroke-width="2"><title>planner, normal: mean 3.593 guesses</title></circle>
-<circle class="s2 ring" cx="435.0" cy="256" r="6" stroke-width="2"><title>planner, hard: mean 3.603 guesses</title></circle>
-<text class="ink2 num" x="740" y="260" text-anchor="end">0 / 12</text>
+<circle class="s2 ring" cx="425.7" cy="256" r="6" stroke-width="2"><title>planner, hard: mean 3.597 guesses</title></circle>
+<text class="ink2 num" x="740" y="260" text-anchor="end">0 / 8</text>
 </svg>

@@ -22,7 +22,7 @@
       ],
       "failed": 0,
       "mean_guesses_when_solved": 3.495464362850972,
-      "runtime_seconds": 0.318980167,
+      "runtime_seconds": 0.333766,
       "positions_decided": 2479,
       "failed_answers": null
     },
@@ -42,7 +42,7 @@
       ],
       "failed": 0,
       "mean_guesses_when_solved": 3.5209503239740823,
-      "runtime_seconds": 0.346159167,
+      "runtime_seconds": 0.343012041,
       "positions_decided": 2494,
       "failed_answers": null
     },
@@ -62,7 +62,7 @@
       ],
       "failed": 0,
       "mean_guesses_when_solved": 3.548596112311015,
-      "runtime_seconds": 0.548044833,
+      "runtime_seconds": 0.561683208,
       "positions_decided": 2504,
       "failed_answers": null
     },
@@ -82,7 +82,7 @@
       ],
       "failed": 22,
       "mean_guesses_when_solved": 3.6498037505451375,
-      "runtime_seconds": 0.014520709,
+      "runtime_seconds": 0.013584958,
       "positions_decided": 2293,
       "failed_answers": [
         "CATCH",
@@ -125,7 +125,7 @@
       ],
       "failed": 0,
       "mean_guesses_when_solved": 3.592656587473002,
-      "runtime_seconds": 0.551337167,
+      "runtime_seconds": 0.555652458,
       "positions_decided": 2392,
       "failed_answers": null
     },
@@ -145,7 +145,7 @@
       ],
       "failed": 12,
       "mean_guesses_when_solved": 3.5822839774207553,
-      "runtime_seconds": 0.07116325,
+      "runtime_seconds": 0.063232209,
       "positions_decided": 2313,
       "failed_answers": [
         "CRAZY",
@@ -178,7 +178,7 @@
       ],
       "failed": 14,
       "mean_guesses_when_solved": 3.604954367666232,
-      "runtime_seconds": 0.059797333,
+      "runtime_seconds": 0.06347925,
       "positions_decided": 2316,
       "failed_answers": [
         "FOYER",
@@ -213,7 +213,7 @@
       ],
       "failed": 13,
       "mean_guesses_when_solved": 3.637706342311034,
-      "runtime_seconds": 0.067785209,
+      "runtime_seconds": 0.074814083,
       "positions_decided": 2322,
       "failed_answers": [
         "FOYER",
@@ -247,7 +247,7 @@
       ],
       "failed": 22,
       "mean_guesses_when_solved": 3.6498037505451375,
-      "runtime_seconds": 0.016085667,
+      "runtime_seconds": 0.014970375,
       "positions_decided": 2293,
       "failed_answers": [
         "CATCH",
@@ -282,27 +282,23 @@
       "wins_by_guesses": [
         0,
         1,
-        130,
-        924,
-        1009,
-        205,
+        128,
+        933,
+        1016,
+        195,
         34
       ],
-      "failed": 12,
-      "mean_guesses_when_solved": 3.603126356925749,
-      "runtime_seconds": 0.276735541,
-      "positions_decided": 2306,
+      "failed": 8,
+      "mean_guesses_when_solved": 3.5973125270914608,
+      "runtime_seconds": 0.237285542,
+      "positions_decided": 2321,
       "failed_answers": [
         "FOYER",
         "GONER",
         "GRAZE",
-        "PATCH",
+        "JAZZY",
         "SWORE",
-        "TIGHT",
-        "VAUNT",
         "WASTE",
-        "WATCH",
-        "WATER",
         "WIGHT",
         "WOUND"
       ]

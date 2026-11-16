@@ -164,17 +164,17 @@ text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:12px}
 <line class="axis" x1="762" x2="912" y1="406.5" y2="406.5"/>
 <path class="s1" d="M765.7 406.0V406.0Q765.7 405.9 765.8 405.9H779.6Q779.7 405.9 779.7 406.0V406.0Z"><title>planner, hard: 1 games in 1</title></path>
 <text class="muted num" x="772.7" y="422" text-anchor="middle">1</text>
-<path class="s1" d="M787.1 406.0V398.1Q787.1 394.1 791.1 394.1H797.1Q801.1 394.1 801.1 398.1V406.0Z"><title>planner, hard: 130 games in 2</title></path>
+<path class="s1" d="M787.1 406.0V398.3Q787.1 394.3 791.1 394.3H797.1Q801.1 394.3 801.1 398.3V406.0Z"><title>planner, hard: 128 games in 2</title></path>
 <text class="muted num" x="794.1" y="422" text-anchor="middle">2</text>
-<path class="s1" d="M808.6 406.0V325.5Q808.6 321.5 812.6 321.5H818.6Q822.6 321.5 822.6 325.5V406.0Z"><title>planner, hard: 924 games in 3</title></path>
+<path class="s1" d="M808.6 406.0V324.7Q808.6 320.7 812.6 320.7H818.6Q822.6 320.7 822.6 324.7V406.0Z"><title>planner, hard: 933 games in 3</title></path>
 <text class="muted num" x="815.6" y="422" text-anchor="middle">3</text>
-<path class="s1" d="M830.0 406.0V317.7Q830.0 313.7 834.0 313.7H840.0Q844.0 313.7 844.0 317.7V406.0Z"><title>planner, hard: 1009 games in 4</title></path>
+<path class="s1" d="M830.0 406.0V317.1Q830.0 313.1 834.0 313.1H840.0Q844.0 313.1 844.0 317.1V406.0Z"><title>planner, hard: 1016 games in 4</title></path>
 <text class="muted num" x="837.0" y="422" text-anchor="middle">4</text>
-<path class="s1" d="M851.4 406.0V391.3Q851.4 387.3 855.4 387.3H861.4Q865.4 387.3 865.4 391.3V406.0Z"><title>planner, hard: 205 games in 5</title></path>
+<path class="s1" d="M851.4 406.0V392.2Q851.4 388.2 855.4 388.2H861.4Q865.4 388.2 865.4 392.2V406.0Z"><title>planner, hard: 195 games in 5</title></path>
 <text class="muted num" x="858.4" y="422" text-anchor="middle">5</text>
 <path class="s1" d="M872.9 406.0V406.0Q872.9 402.9 876.0 402.9H883.7Q886.9 402.9 886.9 406.0V406.0Z"><title>planner, hard: 34 games in 6</title></path>
 <text class="muted num" x="879.9" y="422" text-anchor="middle">6</text>
-<path class="s2" d="M894.3 406.0V406.0Q894.3 404.9 895.4 404.9H907.2Q908.3 404.9 908.3 406.0V406.0Z"><title>planner, hard: 12 games failed</title></path>
+<path class="s2" d="M894.3 406.0V406.0Q894.3 405.3 895.0 405.3H907.6Q908.3 405.3 908.3 406.0V406.0Z"><title>planner, hard: 8 games failed</title></path>
 <text class="muted num" x="901.3" y="422" text-anchor="middle">X</text>
-<text class="ink2 num" x="901.3" y="399.9" text-anchor="middle">12</text>
+<text class="ink2 num" x="901.3" y="400.3" text-anchor="middle">8</text>
 </svg>

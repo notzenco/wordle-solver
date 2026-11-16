@@ -182,6 +182,9 @@ func runSim(c *cmdCtx) error {
 	if len(c.args) != 1 || !wordle.IsWord(strings.ToLower(c.args[0])) {
 		return usageError("sim needs one five-letter answer made of letters a-z, such as 'wordle-solver sim crazy'")
 	}
+	if !wordle.IsValid(strings.ToLower(c.args[0])) {
+		return usageError(fmt.Sprintf("%s is not in the word list, so no player could find it", strings.ToUpper(c.args[0])))
+	}
 	opts, rng, err := c.solver()
 	if err != nil {
 		return err
