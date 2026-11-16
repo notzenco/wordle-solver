@@ -136,6 +136,7 @@ wordle-solver sync                    # cache every past answer (a few minutes)
 wordle-solver auto --offline --id 1500 # use only cached answers; nothing is looked up
 wordle-solver clean                   # delete the saved profile, games, answers, settings and providers
 wordle-solver settings                # saved defaults and where each value comes from
+source <(wordle-solver completion zsh)  # tab completion (also bash and fish; see 'help completion')
 wordle-solver bench --strategy all --json   # JSON for scripts; also stats, providers and settings
 ```
 

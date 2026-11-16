@@ -190,6 +190,12 @@ var commands = []*command{
 	{name: "sync", group: "Setup", summary: "Download every past answer (once; a few minutes)", run: runSync},
 	{name: "clean", group: "Setup", summary: "Delete your profile, games, cached answers, settings and providers", options: []string{"y"}, run: runClean},
 	{name: "update", group: "Setup", summary: "Install the latest release", options: []string{"force"}, run: runUpdate},
+	{name: "completion", group: "Setup", args: "bash|zsh|fish", summary: "Print a shell completion script",
+		help: "Completes commands, subcommands and options for wordle-solver and wsolve. Load it with\n" +
+			"  bash: source <(wordle-solver completion bash)   (add to ~/.bashrc)\n" +
+			"  zsh:  source <(wordle-solver completion zsh)    (add to ~/.zshrc, after compinit)\n" +
+			"  fish: wordle-solver completion fish > ~/.config/fish/completions/wordle-solver.fish",
+		examples: []string{"wordle-solver completion zsh"}},
 	{name: "version", group: "Setup", summary: "Print the version", run: runVersion},
 	{name: "help", group: "Setup", args: "[COMMAND]", summary: "Show help for wordle-solver or a command"},
 }
@@ -197,7 +203,10 @@ var commands = []*command{
 var groups = []string{"Play", "Analyse", "Models", "Setup"}
 
 // help reads the command table, so it is attached after initialisation.
-func init() { findCommand("help").run = runHelp }
+func init() {
+	findCommand("help").run = runHelp
+	findCommand("completion").run = runCompletion
+}
 
 func findCommand(name string) *command {
 	for _, c := range commands {
