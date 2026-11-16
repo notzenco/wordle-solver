@@ -11,7 +11,7 @@ func TestEvalSummary(t *testing.T) {
 	var out bytes.Buffer
 	writeEvalSummary(&out, evalSummary{Model: "clef-flash-4bit", Kind: "systemone", Options: "candidates", Out: "clef.jsonl", Games: 3, Eligible: 3, Solved: 3, Guesses: 11, Beyond: 1, Tokens: 12328, Duration: 4302846250 * time.Nanosecond, MetricCount: 6, Probability: 1.6606, Loss: 12.8316, Uniform: 16.7532, Frequency: 16.3512})
 	s := out.String()
-	for _, want := range []string{"3 / 3 eligible games", "11 total, 3.67 per game", "+1 total guesses", "12,328", "4.303s", "27.7%", "2.139", "Transcript: clef.jsonl"} {
+	for _, want := range []string{"3 / 3 eligible games (95% CI 44–100%)", "11 total, 3.67 per game", "+1 total guesses", "12,328", "4.303s", "27.7%", "2.139", "Transcript: clef.jsonl"} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("missing %q:\n%s", want, s)
 		}

@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	modeleval "github.com/notzenco/wordle-solver/internal/eval"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -125,8 +126,9 @@ func table(rows []row) string {
 			set = "held-out"
 		}
 		n := float64(r.Eligible)
-		fmt.Fprintf(&b, "| %s | %s | %d/%d | %.2f | %.2f | %.1f%% | %.3f | %.3f | %.3f | %.0f s |\n",
-			label(r.Model), set, r.Solved, r.Eligible, float64(r.Guesses)/n, float64(r.Baseline)/n,
+		lo, hi := modeleval.Wilson(r.Solved, r.Eligible)
+		fmt.Fprintf(&b, "| %s | %s | %d/%d (%.0f–%.0f%%) | %.2f | %.2f | %.1f%% | %.3f | %.3f | %.3f | %.0f s |\n",
+			label(r.Model), set, r.Solved, r.Eligible, 100*lo, 100*hi, float64(r.Guesses)/n, float64(r.Baseline)/n,
 			100*r.Probability, r.Loss, r.Uniform, r.Freq, r.Duration.Seconds())
 	}
 	return b.String()

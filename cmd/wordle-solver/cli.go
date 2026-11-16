@@ -52,9 +52,11 @@ var allOptions = []option{
 	{"n", "n", "N", "0", "int", "play N random answers instead of all of them", false},
 	{"strategy", "strategy", "NAME", "", "string", "benchmark a guess strategy instead of the player model; NAME is one of the strategies below or all", true},
 
+	{"top", "top", "N", "5", "int", "how many guesses to list", false},
 	{"json", "json", "", "false", "bool", "print JSON instead of a table, for scripts", false},
 	{"y", "y", "", "false", "bool", "delete without asking", false},
 	{"force", "force", "", "false", "bool", "reinstall even when already up to date", false},
+	{"check", "check", "", "false", "bool", "only say whether a newer release exists", false},
 
 	{"by", "by", "APPROACH", "human", "string", "human (the human-like player), solver (the entropy strategy, from the colours alone) or model (a model through the eval harness, from the colours alone)", true},
 	{"model", "model", "PROVIDER/MODEL", "", "string", "model for --by model; decision models such as Clef choose from the words that fit", true},
@@ -65,7 +67,7 @@ var allOptions = []option{
 
 	{"eval.model", "model", "PROVIDER/MODEL", "", "string", "model to evaluate; the provider is the text before the first slash", true},
 	{"eval.games", "games", "N", "10", "uint", "number of games", true},
-	{"eval.set", "set", "SET", "answers", "string", "answers (the official list) or heldout (valid words never used as answers)", true},
+	{"eval.set", "set", "SET", "answers", "string", "answers (the official list), heldout (valid words never used as answers) or matched (held-out words as familiar as the answers the same seed draws)", true},
 	{"eval.seed", "seed", "N", "0", "uint", "seed for the answer sample and offered options", true},
 	{"eval.kind", "kind", "KIND", "", "string", "chat or systemone (default: the provider's kind, switching to systemone when the server says the model is a decision model)", true},
 	{"eval.options", "options", "MODE", "", "string", "free or candidates (default: free for chat, candidates for systemone)", true},
@@ -141,6 +143,14 @@ var commands = []*command{
 		examples: []string{"wordle-solver", "wordle-solver auto --by solver", "wordle-solver auto --by model --model omlx/clef-flash-4bit",
 			"wordle-solver auto --date 2026-11-12", "wordle-solver auto --from 1900 --to 1910"},
 		run: runAuto},
+	{name: "next", group: "Play", args: "[WORD:COLOURS ...]", summary: "Show the best next guesses for clues you type",
+		help: "Give each word played so far with its colours as g/y/b (or 2/1/0), such as slate:bygbb.\n" +
+			"Prints the listed answers that still fit and the guesses that split them best, by the\n" +
+			"entropy strategy's measure: bits of information, answers expected to remain, and the most\n" +
+			"that any colours could leave. A * marks a guess that could itself be the answer.",
+		options:  []string{"top", "hard", "json"},
+		examples: []string{"wordle-solver next", "wordle-solver next slate:bygbb", "wordle-solver next slate:bbybb crony:bgbbb --hard"},
+		run:      runNext},
 	{name: "sim", group: "Play", args: "WORD", summary: "Watch the solver play a known answer",
 		options:  solverOptions,
 		examples: []string{"wordle-solver sim crazy", "wordle-solver sim crazy --hard --seed 1"},
@@ -189,7 +199,7 @@ var commands = []*command{
 		run:      settingsCommand},
 	{name: "sync", group: "Setup", summary: "Download every past answer (once; a few minutes)", run: runSync},
 	{name: "clean", group: "Setup", summary: "Delete your profile, games, cached answers, settings and providers", options: []string{"y"}, run: runClean},
-	{name: "update", group: "Setup", summary: "Install the latest release", options: []string{"force"}, run: runUpdate},
+	{name: "update", group: "Setup", summary: "Install the latest release, or check for one", options: []string{"force", "check"}, run: runUpdate},
 	{name: "completion", group: "Setup", args: "bash|zsh|fish", summary: "Print a shell completion script",
 		help: "Completes commands, subcommands and options for wordle-solver and wsolve. Load it with\n" +
 			"  bash: source <(wordle-solver completion bash)   (add to ~/.bashrc)\n" +

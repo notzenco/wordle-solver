@@ -77,25 +77,45 @@ func assetName(tag, goos, goarch string) string {
 	return fmt.Sprintf("wordle-solver_%s_%s_%s%s", strings.TrimPrefix(tag, "v"), goos, goarch, ext)
 }
 
+func latest(ctx context.Context, apiURL string) (release, error) {
+	var rel release
+	body, err := get(ctx, apiURL)
+	if errors.Is(err, errNotFound) {
+		return rel, errors.New("no release has been published yet")
+	}
+	if err != nil {
+		return rel, fmt.Errorf("looking up the latest release: %w", err)
+	}
+	if err := json.Unmarshal(body, &rel); err != nil {
+		return rel, fmt.Errorf("reading the latest release: %w", err)
+	}
+	return rel, nil
+}
+
+// Check looks up the latest release without downloading it. newer reports
+// whether it is later than current; isRelease is false for a development
+// build, which can't be compared.
+func Check(ctx context.Context, apiURL, current string) (tag string, newer, isRelease bool, err error) {
+	rel, err := latest(ctx, apiURL)
+	if err != nil {
+		return "", false, false, err
+	}
+	newer, isRelease = newerVersion(current, rel.Tag)
+	return rel.Tag, newer, isRelease, nil
+}
+
 // Update replaces exe with the latest release for goos/goarch when it is
 // newer than current, and returns the version installed, or "" when exe is
 // already up to date. A development build is replaced only with force.
 func Update(ctx context.Context, apiURL, current, exe, goos, goarch string, force bool) (string, error) {
-	var rel release
-	body, err := get(ctx, apiURL)
-	if errors.Is(err, errNotFound) {
-		return "", errors.New("no release has been published yet")
-	}
+	rel, err := latest(ctx, apiURL)
 	if err != nil {
-		return "", fmt.Errorf("looking up the latest release: %w", err)
-	}
-	if err := json.Unmarshal(body, &rel); err != nil {
-		return "", fmt.Errorf("reading the latest release: %w", err)
+		return "", err
 	}
 	newer, ok := newerVersion(current, rel.Tag)
 	switch {
 	case !ok && !force:
-		return "", fmt.Errorf("this is a development build (%s); 'update -force' replaces it with release %s", current, rel.Tag)
+		return "", fmt.Errorf("this is a development build (%s); 'update --force' replaces it with release %s", current, rel.Tag)
 	case ok && !newer && !force:
 		return "", nil
 	}
