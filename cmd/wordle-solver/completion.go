@@ -75,7 +75,7 @@ func bashCompletion() string {
 	return b.String()
 }
 
-// single quotes s for zsh and fish, which both accept '\'' inside quotes.
+// single quotes s for zsh and fish, which both accept '\” inside quotes.
 func single(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
 
 func zshCompletion() string {
